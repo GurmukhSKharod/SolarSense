@@ -35,10 +35,18 @@ sunpy
 
 fastapi, uvicorn
 
+![](https://skillicons.dev/icons?i=python,numpy,pandas,scikit-learn,pytorch)
+
+![](https://skillicons.dev/icons?i=git,github)
+
+![](https://skillicons.dev/icons?i=linux,windows,mac)
+
 
 ## Frontend
 
 React + TailwindCSS (webpack dev server)
+
+![](https://skillicons.dev/icons?i=html,css,javascript,react,tailwind)
 
 ---
 
@@ -220,7 +228,7 @@ uvicorn api:app --reload --port 8000
 
 Frontend:
 
-Simply click the left and right arrow keys to automatically run the sklearn version of the pipeline, results are returned and values are updated automatically in roughly 1-2 minutes.
+Simply click the left and right arrow keys to automatically run the pytorch version of the pipeline, results are returned and values are updated automatically in roughly 1-2 minutes.
 There is also a dark/light mode feature and full mobile responsiveness.
 Check out the index.js file in react-tailwind-vanilla/src for more details.
 
