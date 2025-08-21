@@ -1,0 +1,32 @@
+# Python noise
+__pycache__/
+*.py[cod]
+*.ipynb_checkpoints
+*.DS_Store
+
+# Editors / IDEs
+.vscode/
+.idea/
+
+# Envs
+.env
+.venv/
+.env.*/
+venv/
+*.swp
+
+
+# Big data – ignore everything in processed
+#data/processed/*
+
+# …but keep tiny demo/sample files
+!data/processed/README.md
+!data/processed/sample_small.csv
+
+# Logs / temp
+logs/
+*.log
+*.errors
+
+# React dependencies
+**/node_modules/
