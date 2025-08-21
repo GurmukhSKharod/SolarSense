@@ -1,9 +1,12 @@
 # scripts/backend/collect/fetch.py
+import os
 import requests
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from sunpy.net import Fido, attrs as a
 from sunpy.timeseries import TimeSeries
+
+NO_SUNPY = os.getenv("NO_SUNPY", "0") == "1"
 
 SWPC_7DAY_URL = "https://services.swpc.noaa.gov/json/goes/primary/xrays-7-day.json"
 
@@ -84,10 +87,16 @@ def fetch_range_minute(start_dt: datetime, end_dt: datetime) -> pd.DataFrame:
         end_dt = now
     recent_cutoff = now - timedelta(days=7)
 
+    #Cloud mode: don’t try SunPy/NCEI for >7d (Render free repeatedly fails).
+    if start_dt < recent_cutoff and NO_SUNPY:
+        raise RuntimeError(
+            "Historical fetch (>7 days) requires SunPy/NCEI and is disabled in cloud mode."
+        )
+
     parts = []
 
     # SunPy for historical portion
-    if start_dt < recent_cutoff:
+    if start_dt < recent_cutoff and not NO_SUNPY:
         sunpy_end = min(end_dt, recent_cutoff - timedelta(seconds=1))
         if sunpy_end >= start_dt:
             parts.append(_parse_sunpy(_fetch_sunpy(start_dt, sunpy_end)))

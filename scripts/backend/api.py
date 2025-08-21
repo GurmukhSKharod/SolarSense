@@ -58,11 +58,20 @@ def forecast(date_iso: str):
     seed_start = day_start - timedelta(minutes=WINDOW)
     seed_end   = day_start - timedelta(minutes=1)
 
-    seed_df   = fetch_range_minute(seed_start, seed_end)     # minute cadence, tz-aware UTC
+    try:
+        seed_df = fetch_range_minute(seed_start, seed_end)
+    except RuntimeError as e:
+        # Clear message for the UI
+        raise HTTPException(status_code=422, detail=str(e))
+    
     if len(seed_df) < WINDOW:
         raise HTTPException(500, detail="Not enough seed data for prediction window")
 
-    actual_df = fetch_range_minute(day_start, day_end)       # minute cadence, tz-aware UTC
+    try:
+        actual_df = fetch_range_minute(day_start, day_end)
+    except RuntimeError as e:
+        raise HTTPException(status_code=422, detail=str(e))
+    
     pred_df   = predict_from_seed_df(seed_df)                # minute cadence
 
     # Make absolutely sure we only return the requested UTC day
