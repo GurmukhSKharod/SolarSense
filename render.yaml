@@ -3,5 +3,13 @@ services:
     name: solarsense-api
     env: docker
     plan: free
+    rootDir: deploy/predictor
     autoDeploy: true
     healthCheckPath: /health
+    envVars:
+      - key: PORT
+        value: "10000"
+      - key: NO_SUNPY
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "1"

@@ -1,5 +1,6 @@
-name: solarsense-predictor
-channels: [conda-forge, pytorch]
+name: solarsense
+channels:
+  - conda-forge
 dependencies:
   - python=3.11
   - fastapi
@@ -8,6 +9,7 @@ dependencies:
   - pandas
   - requests
   - scikit-learn
+  # astropy is fine (light); sunpy is intentionally omitted for Render
+  - astropy
   - pip
-  - pip:
-      - torch==2.2.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+  # no pip torch here; we install torch in the Dockerfile with a custom index
