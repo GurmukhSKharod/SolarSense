@@ -1,0 +1,23 @@
+# netlify.toml  (repo root)
+
+[build]
+  # your frontend lives here:
+  base = "react-tailwind-vanilla"
+  command = "npm ci && npm run build"
+  publish = "dist"
+
+[build.environment]
+  NODE_VERSION = "20"        # Netlify's Node for webpack build
+
+# Proxy all frontend calls like /api/forecast/... to Render
+[[redirects]]
+  from = "/api/*"
+  to = "https://solarsense-api.onrender.com/:splat"
+  status = 200
+  force = true
+
+# SPA fallback so client-side routes work on refresh
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
