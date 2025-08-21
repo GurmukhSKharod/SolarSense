@@ -29,10 +29,17 @@ import {
 
 /* ---------- helpers ---------- */
 
+// ---- API base resolution (safe for webpack, CRA, and Vite) ----
 const API_BASE =
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
-  process.env.REACT_APP_API_BASE ||
-  "/api"; // fallback: Netlify proxy (next step)
+  // Vite-style override if present
+  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
+  // window override if you ever want to set it in index.html:
+  (typeof window !== "undefined" && window.__API_BASE__) ||
+  // local dev fallback
+  ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:8000"
+    // production: use path that can be proxied by Netlify
+    : "/api");
 
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);
@@ -72,17 +79,27 @@ const localDayToUTCISO = (isoLocal) => {
 };
 
 const getForecast = async (isoLocalDay) => {
-  const dateUTC = localDayToUTCISO(isoLocalDay);
-  const r = await fetch(`${API_BASE}/forecast/${dateUTC}`);
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const dateUTC = localDayToUTCISO(isoLocalDay);
+    const r = await fetch(`${API_BASE}/forecast/${dateUTC}`, { mode: "cors" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    console.error("getForecast failed:", e, "API_BASE:", API_BASE);
+    return null;
+  }
 };
 
 const getSdo = async (isoLocalDay) => {
-  const dateUTC = localDayToUTCISO(isoLocalDay);
-  const r = await fetch(`${API_BASE}/sdo/${dateUTC}`);
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const dateUTC = localDayToUTCISO(isoLocalDay);
+    const r = await fetch(`${API_BASE}/sdo/${dateUTC}`, { mode: "cors" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } catch (e) {
+    console.error("getSdo failed:", e, "API_BASE:", API_BASE);
+    return null;
+  }
 };
 
 /* Fallback: pull peaks from a summary sentence */

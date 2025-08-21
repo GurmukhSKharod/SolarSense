@@ -6,9 +6,9 @@ from datetime import datetime, timedelta, timezone
 
 import pandas as pd
 
-from collect.fetch import fetch_range_minute, fetch_day_minute 
-from collect.sdo import build_sdo_payload
-from model.predict_pytorch import predict_from_seed_df, WINDOW
+from scripts.backend.collect.fetch import fetch_range_minute, fetch_day_minute
+from scripts.backend.collect.sdo   import build_sdo_payload
+from scripts.backend.model.predict_pytorch import predict_from_seed_df, WINDOW
 
 app = FastAPI()
 app.add_middleware(
