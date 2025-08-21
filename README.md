@@ -35,7 +35,7 @@ sunpy
 
 fastapi, uvicorn
 
-![](https://skillicons.dev/icons?i=python,numpy,pandas,scikit-learn,pytorch)
+![](https://skillicons.dev/icons?i=python,pytorch)
 
 ![](https://skillicons.dev/icons?i=git,github)
 
