@@ -29,6 +29,12 @@ import {
 
 /* ---------- helpers ---------- */
 
+const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
+  process.env.REACT_APP_API_BASE ||
+  "/api"; // fallback: Netlify proxy (next step)
+
+
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 const shiftDay = (iso, d) => {
   const t = new Date(iso + "T00:00:00Z");
@@ -67,16 +73,16 @@ const localDayToUTCISO = (isoLocal) => {
 
 const getForecast = async (isoLocalDay) => {
   const dateUTC = localDayToUTCISO(isoLocalDay);
-  const r = await fetch(`http://localhost:8000/forecast/${dateUTC}`);
+  const r = await fetch(`${API_BASE}/forecast/${dateUTC}`);
   if (!r.ok) return null;
-  return await r.json();
+  return r.json();
 };
 
 const getSdo = async (isoLocalDay) => {
   const dateUTC = localDayToUTCISO(isoLocalDay);
-  const r = await fetch(`http://localhost:8000/sdo/${dateUTC}`);
+  const r = await fetch(`${API_BASE}/sdo/${dateUTC}`);
   if (!r.ok) return null;
-  return await r.json();
+  return r.json();
 };
 
 /* Fallback: pull peaks from a summary sentence */
