@@ -11,6 +11,5 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER . /app
 ENV PYTHONPATH=/app
 ENV PORT=8000
 
-# Run FastAPI *inside* the conda env
-CMD ["micromamba","run","-n","base","python","-m","uvicorn",
-     "scripts.backend.api:app","--host","0.0.0.0","--port","${PORT}"]
+# Run FastAPI inside the conda env
+CMD ["micromamba","run","-n","base","python","-m","uvicorn","scripts.backend.api:app","--host","0.0.0.0","--port","${PORT}"]
