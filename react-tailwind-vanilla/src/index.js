@@ -123,6 +123,13 @@ const App = () => {
   const [sdo, setSdo] = useState(null);
   const [fadeKey, setFadeKey] = useState(0);          // for SDO panel fade
 
+  // limit how far back a user can go (in UTC)
+  const MIN_DAYS_BACK = 6;
+  const minAllowedUTC = shiftDay(todayUTC(), -MIN_DAYS_BACK);
+
+  const isToday  = day === todayUTC();
+  const isAtMin  = day <= minAllowedUTC; // "YYYY-MM-DD" compares lexicographically
+
   // video + sizing refs
   const videoRef = useRef(null);
   const timeRef  = useRef(null);
@@ -130,14 +137,18 @@ const App = () => {
   const [vidH, setVidH] = useState(420);              // desktop video height
 
   // prevent moving into the future (UTC)
-  const goPrev = () => setDay((d) => shiftDay(d, -1));
+  const goPrev = () =>
+    setDay((d) => {
+      const min = shiftDay(todayUTC(), -MIN_DAYS_BACK);
+      const n   = shiftDay(d, -1);
+      return n < min ? d : n;  // no-op if we’d go past the limit
+    });
   const goNext = () =>
     setDay((d) => {
       const t = todayUTC();
       const n = shiftDay(d, 1);
       return n > t ? d : n;
     });
-  const isToday = day === todayUTC();
 
   useEffect(() => {
     (async () => {
@@ -293,7 +304,16 @@ const App = () => {
 
       {/* date + headline */}
       <section className="flex items-center justify-center gap-4 mb-6">
-        <button onClick={goPrev} className={`px-3 text-2xl font-bold select-none ${arrowClr}`}>&lt;</button>
+        <button
+          onClick={goPrev}
+          disabled={isAtMin}
+          className={`px-3 text-2xl font-bold select-none ${arrowClr} ${
+            isAtMin ? "opacity-0 pointer-events-none" : ""
+          }`}
+        >
+          &lt;
+        </button>
+
         <div className="text-center">
           <p className={`text-lg font-semibold ${textSub}`}>{longDate(day)}</p>
           <p className={`text-sm mb-1 ${textSub}`}>{currentTime} UTC</p>
