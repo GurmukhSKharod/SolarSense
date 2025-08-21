@@ -1,6 +1,5 @@
-name: solarsense
-channels:
-  - conda-forge
+name: solarsense-predictor
+channels: [conda-forge, pytorch]
 dependencies:
   - python=3.11
   - fastapi
@@ -8,10 +7,7 @@ dependencies:
   - numpy
   - pandas
   - requests
-  - scipy
-  - sunpy=5.*
-  - astropy=6.*
-  - scikit-learn=1.4.*
+  - scikit-learn
   - pip
   - pip:
       - torch==2.2.2+cpu --extra-index-url https://download.pytorch.org/whl/cpu

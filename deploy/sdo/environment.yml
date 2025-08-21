@@ -1,0 +1,12 @@
+name: solarsense-sdo
+channels: [conda-forge]
+dependencies:
+  - python=3.11
+  - fastapi
+  - uvicorn
+  - numpy
+  - pandas
+  - requests
+  - scipy
+  - sunpy=5.*
+  - astropy=6.*
