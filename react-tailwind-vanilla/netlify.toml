@@ -1,0 +1,20 @@
+# Forecast → predictor service
+[[redirects]]
+  from = "/api/forecast/*"
+  to   = "https://solarsense-predictor.onrender.com/forecast/:splat"
+  status = 200
+  force  = true
+
+# SDO → sdo service
+[[redirects]]
+  from = "/api/sdo/*"
+  to   = "https://solarsense-sdo.onrender.com/sdo/:splat"
+  status = 200
+  force  = true
+
+# Optional: health check (handy for quick tests)
+[[redirects]]
+  from = "/api/health"
+  to   = "https://solarsense-predictor.onrender.com/health"
+  status = 200
+  force  = true
