@@ -1,4 +1,5 @@
 # scripts/backend/api.py
+import os
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta, timezone
@@ -10,7 +11,12 @@ from collect.sdo import build_sdo_payload
 from model.predict_pytorch import predict_from_seed_df, WINDOW
 
 app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "*")],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""
@@ -36,6 +42,12 @@ def _avg_hourly(df: pd.DataFrame, flux_col: str, class_col: str):
                   "B" if x>=1e-7 else "A"
     )
     return out[["hour", flux_col, "class"]]
+
+
+@app.get("/health")
+def health():
+    return {"ok": True}
+
 
 @app.get("/forecast/{date_iso}")
 def forecast(date_iso: str):
