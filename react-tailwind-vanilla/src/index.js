@@ -32,15 +32,18 @@ import {
 // ---- API base resolution (safe for webpack, CRA, and Vite) ----
 const PRODUCTION_API = 'https://solarsense-api.onrender.com';
 
+// API base (works for local dev + Netlify prod)
 const API_BASE =
+  // allow explicit override when developing
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
   (typeof window !== "undefined" && window.__API_BASE__) ||
-  (typeof process !== "undefined" && process.env?.REACT_APP_API_BASE) ||
+  // local dev -> talk to your local FastAPI
   ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:8000"
-    : PRODUCTION_API);
+    // production (Netlify) -> go through the proxy
+    : "/api");
 
-console.log('API_BASE =', API_BASE);
+console.log("API_BASE =", API_BASE);
 
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);
@@ -150,6 +153,11 @@ const App = () => {
       const n = shiftDay(d, 1);
       return n > t ? d : n;
     });
+
+
+  useEffect(() => {
+    fetch(`${API_BASE}/health`).catch(() => {});
+  }, []); // run once on load
 
   useEffect(() => {
     (async () => {
