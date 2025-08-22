@@ -33,18 +33,25 @@ import {
 const PRODUCTION_API = 'https://solarsense-api.onrender.com';
 
 // API base (works for local dev + Netlify prod)
-const API_BASE =
-  // allow explicit override when developing
-  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
-  (typeof window !== "undefined" && window.__API_BASE__) ||
-  // local dev -> talk to your local FastAPI
-  ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
-    ? "http://localhost:8000"
-    // production (Netlify) -> go through the proxy
-    : "/api");
+const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
+const API_BASE = isLocal
+  ? "http://localhost:8000"
+  : "https://solarsense-api.onrender.com"; // <—  Render URL
 
 console.log("API_BASE =", API_BASE);
 
+// ---- JSON fetch helper with timeout ----
+const fetchJSON = async (url, ms = 90000) => {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), ms);
+  try {
+    const r = await fetch(url, { signal: ctrl.signal, mode: "cors" });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    return await r.json();
+  } finally {
+    clearTimeout(timer);
+  }
+};
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);
 const shiftDay = (iso, d) => {
@@ -83,27 +90,13 @@ const localDayToUTCISO = (isoLocal) => {
 };
 
 const getForecast = async (isoLocalDay) => {
-  try {
-    const dateUTC = localDayToUTCISO(isoLocalDay);
-    const r = await fetch(`${API_BASE}/forecast/${dateUTC}`, { mode: "cors" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  } catch (e) {
-    console.error("getForecast failed:", e, "API_BASE:", API_BASE);
-    return null;
-  }
+  const dateUTC = localDayToUTCISO(isoLocalDay);
+  return fetchJSON(`${API_BASE}/forecast/${dateUTC}`, 90000); // 90s timeout
 };
 
 const getSdo = async (isoLocalDay) => {
-  try {
-    const dateUTC = localDayToUTCISO(isoLocalDay);
-    const r = await fetch(`${API_BASE}/sdo/${dateUTC}`, { mode: "cors" });
-    if (!r.ok) throw new Error(`HTTP ${r.status}`);
-    return await r.json();
-  } catch (e) {
-    console.error("getSdo failed:", e, "API_BASE:", API_BASE);
-    return null;
-  }
+  const dateUTC = localDayToUTCISO(isoLocalDay);
+  return fetchJSON(`${API_BASE}/sdo/${dateUTC}`, 90000);
 };
 
 /* Fallback: pull peaks from a summary sentence */
@@ -154,10 +147,8 @@ const App = () => {
       return n > t ? d : n;
     });
 
-
-  useEffect(() => {
-    fetch(`${API_BASE}/health`).catch(() => {});
-  }, []); // run once on load
+  // warm the Render dyno once on load
+  useEffect(() => { fetch(`${API_BASE}/health`).catch(() => {}); }, []);
 
   useEffect(() => {
     (async () => {

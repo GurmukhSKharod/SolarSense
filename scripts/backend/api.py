@@ -11,9 +11,12 @@ from scripts.backend.collect.sdo   import build_sdo_payload
 from scripts.backend.model.predict_pytorch import predict_from_seed_df, WINDOW
 
 app = FastAPI()
+origins_env = os.getenv("FRONTEND_ORIGIN", "*")
+allow_origins = ["*"] if origins_env.strip() == "*" else [o.strip() for o in origins_env.split(",")]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "*")],
+    allow_origins=allow_origins,
     allow_methods=["*"],
     allow_headers=["*"],
 )
