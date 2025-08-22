@@ -12,17 +12,14 @@ from scripts.backend.model.predict_pytorch import predict_from_seed_df, WINDOW
 from starlette.middleware.gzip import GZipMiddleware
 
 app = FastAPI()
-origins_env = os.getenv("FRONTEND_ORIGIN", "*")
-# allow multiple origins via comma-separated env var
-origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "https://solarsense.netlify.app").split(",")]
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.add_middleware(
-  CORSMiddleware,
-  allow_origins=["*"],   # or your Netlify URL(s)
-  allow_methods=["GET", "OPTIONS"],
-  allow_headers=["*"],
+    CORSMiddleware,
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "https://solarsense.netlify.app")],
+    allow_methods=["GET", "OPTIONS"],
+    allow_headers=["*"],
 )
-app.add_middleware(GZipMiddleware, minimum_size=500) 
 
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""

@@ -30,18 +30,17 @@ import {
 /* ---------- helpers ---------- */
 
 // ---- API base resolution (safe for webpack, CRA, and Vite) ----
-const PRODUCTION_API = 'https://solarsense-api.onrender.com';
+const RENDER_API = "https://solarsense-api.onrender.com";
 
-// API base (works for local dev + Netlify prod)
-const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
 const API_BASE =
+  // dev override
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
   (typeof window !== "undefined" && window.__API_BASE__) ||
+  // local dev → your local FastAPI
   ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:8000"
-    : "/api");
-
-
+    // production → call Render directly (avoid Netlify proxy timeouts)
+    : RENDER_API);
 console.log("API_BASE =", API_BASE);
 
 // ---- JSON fetch helper with timeout ----
@@ -93,14 +92,29 @@ const localDayToUTCISO = (isoLocal) => {
   return d.toISOString().slice(0, 10);
 };
 
-const getForecast = async (isoLocalDay) => {
-  const dateUTC = localDayToUTCISO(isoLocalDay);
-  return fetchJSON(`${API_BASE}/forecast/${dateUTC}`, 90000); // 90s timeout
-};
+async function warmFetch(url, opts = {}, tries = 6) {
+  let delay = 1500;
+  for (let i = 0; i < tries; i++) {
+    try {
+      const ctrl = new AbortController();
+      const t = setTimeout(() => ctrl.abort(), 60000); // 60s
+      const res = await fetch(url, { ...opts, signal: ctrl.signal, mode: "cors" });
+      clearTimeout(t);
+      if (res.ok) return res;
+    } catch (_) {}
+    await new Promise(r => setTimeout(r, delay));
+    delay = Math.min(delay * 1.8, 8000);
+  }
+  throw new Error("API not responding");
+}
 
-const getSdo = async (isoLocalDay) => {
-  const dateUTC = localDayToUTCISO(isoLocalDay);
-  return fetchJSON(`${API_BASE}/sdo/${dateUTC}`, 90000);
+const getForecast = async (isoDay) => {
+  const r = await warmFetch(`${API_BASE}/forecast/${isoDay}`);
+  return r.json();
+};
+const getSdo = async (isoDay) => {
+  const r = await warmFetch(`${API_BASE}/sdo/${isoDay}`);
+  return r.json();
 };
 
 /* Fallback: pull peaks from a summary sentence */
