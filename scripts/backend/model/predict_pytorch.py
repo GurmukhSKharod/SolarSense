@@ -4,6 +4,7 @@ from functools import lru_cache
 import numpy as np
 import pandas as pd
 import joblib
+import os
 import torch
 import torch.nn as nn
 
@@ -14,7 +15,8 @@ YS_PATH     = MODEL_DIR / "y_scaler_60step.pkl"
 MODEL_PATH  = MODEL_DIR / "flux_lstm_60step.pth"
 
 # Window (seed length) & horizon must match your training setup
-WINDOW   = 1440          # minutes of seed history
+SEQ_LEN = int(os.getenv("SEQ_LEN", 60))   # minutes of history; 60 matches your *60step* model
+WINDOW  = SEQ_LEN                         # exported for api.py
 HORIZON  = 1440          # minutes to forecast (24h)
 STEP     = 60            # model outputs 60 minutes at a time
 
@@ -109,6 +111,7 @@ def predict_from_seed_df(seed_df: pd.DataFrame, horizon: int = HORIZON) -> pd.Da
     model, x_scaler, y_scaler, device = _loaded_assets()
 
     seed_df  = _clean_seed_df(seed_df)
+    seed_df = seed_df.sort_values("timestamp").tail(SEQ_LEN)
     # rolling buffer in log10 space
     buf      = seed_df[["long_flux", "short_flux"]].iloc[-WINDOW:].to_numpy(dtype=float)
     buf_log  = np.log10(np.maximum(buf, 1e-12))

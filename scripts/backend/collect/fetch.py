@@ -1,6 +1,7 @@
 # scripts/backend/collect/fetch.py
 import os
 import requests
+import time
 import pandas as pd
 from datetime import datetime, timedelta, timezone
 from functools import lru_cache

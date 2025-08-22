@@ -9,6 +9,7 @@ import pandas as pd
 from scripts.backend.collect.fetch import fetch_range_minute, fetch_day_minute
 from scripts.backend.collect.sdo   import build_sdo_payload
 from scripts.backend.model.predict_pytorch import predict_from_seed_df, WINDOW
+from starlette.middleware.gzip import GZipMiddleware
 
 app = FastAPI()
 origins_env = os.getenv("FRONTEND_ORIGIN", "*")
@@ -16,10 +17,11 @@ allow_origins = ["*"] if origins_env.strip() == "*" else [o.strip() for o in ori
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=[os.getenv("FRONTEND_ORIGIN", "*")],
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(GZipMiddleware, minimum_size=500) 
 
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""
@@ -60,6 +62,8 @@ def forecast(date_iso: str):
     # Seed = previous UTC day, exactly WINDOW minutes (24h) if your model expects that
     seed_start = day_start - timedelta(minutes=WINDOW)
     seed_end   = day_start - timedelta(minutes=1)
+
+    print("WINDOW (seed minutes) =", WINDOW)
 
     try:
         seed_df = fetch_range_minute(seed_start, seed_end)
