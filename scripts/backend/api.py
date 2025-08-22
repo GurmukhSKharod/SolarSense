@@ -13,13 +13,15 @@ from starlette.middleware.gzip import GZipMiddleware
 
 app = FastAPI()
 origins_env = os.getenv("FRONTEND_ORIGIN", "*")
-allow_origins = ["*"] if origins_env.strip() == "*" else [o.strip() for o in origins_env.split(",")]
+# allow multiple origins via comma-separated env var
+origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "https://solarsense.netlify.app").split(",")]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "*")],
-    allow_methods=["*"],
+    allow_origins=origins,
+    allow_methods=["GET", "OPTIONS"],
     allow_headers=["*"],
+    allow_credentials=False,  # (keep false unless you use cookies)
 )
 app.add_middleware(GZipMiddleware, minimum_size=500) 
 
