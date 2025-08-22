@@ -30,16 +30,17 @@ import {
 /* ---------- helpers ---------- */
 
 // ---- API base resolution (safe for webpack, CRA, and Vite) ----
+const PRODUCTION_API = 'https://solarsense-api.onrender.com';
+
 const API_BASE =
-  // Vite-style override if present
-  (typeof import.meta !== "undefined" && import.meta.env && import.meta.env.VITE_API_BASE) ||
-  // window override if you ever want to set it in index.html:
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
   (typeof window !== "undefined" && window.__API_BASE__) ||
-  // local dev fallback
+  (typeof process !== "undefined" && process.env?.REACT_APP_API_BASE) ||
   ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:8000"
-    // production: use path that can be proxied by Netlify
-    : "/api");
+    : PRODUCTION_API);
+
+console.log('API_BASE =', API_BASE);
 
 
 const todayUTC = () => new Date().toISOString().slice(0, 10);

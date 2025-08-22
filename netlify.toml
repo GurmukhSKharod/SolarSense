@@ -9,13 +9,6 @@
 [build.environment]
   NODE_VERSION = "20"        # Netlify's Node for webpack build
 
-# Proxy all frontend calls like /api/forecast/... to Render
-[[redirects]]
-  from = "/api/*"
-  to = "https://solarsense-api.onrender.com/:splat"
-  status = 200
-  force = true
-
 # SPA fallback so client-side routes work on refresh
 [[redirects]]
   from = "/*"
