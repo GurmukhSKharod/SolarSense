@@ -16,8 +16,8 @@ app.add_middleware(GZipMiddleware, minimum_size=500)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[os.getenv("FRONTEND_ORIGIN", "https://solarsense.netlify.app")],
-    allow_methods=["GET", "OPTIONS"],
+    allow_origins=["*"],      
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 

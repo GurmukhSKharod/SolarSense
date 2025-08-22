@@ -33,13 +33,10 @@ import {
 const RENDER_API = "https://solarsense-api.onrender.com";
 
 const API_BASE =
-  // dev override
   (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
   (typeof window !== "undefined" && window.__API_BASE__) ||
-  // local dev → your local FastAPI
   ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
     ? "http://localhost:8000"
-    // production → call Render directly (avoid Netlify proxy timeouts)
     : RENDER_API);
 console.log("API_BASE =", API_BASE);
 
@@ -93,13 +90,13 @@ const localDayToUTCISO = (isoLocal) => {
 };
 
 async function warmFetch(url, opts = {}, tries = 6) {
-  let delay = 1500;
+  let delay = 1200;
   for (let i = 0; i < tries; i++) {
     try {
       const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 60000); // 60s
-      const res = await fetch(url, { ...opts, signal: ctrl.signal, mode: "cors" });
-      clearTimeout(t);
+      const timer = setTimeout(() => ctrl.abort(), 60000); // 60s first-byte timeout
+      const res = await fetch(url, { ...opts, signal: ctrl.signal, mode: "cors", cache: "no-store" });
+      clearTimeout(timer);
       if (res.ok) return res;
     } catch (_) {}
     await new Promise(r => setTimeout(r, delay));
@@ -108,12 +105,16 @@ async function warmFetch(url, opts = {}, tries = 6) {
   throw new Error("API not responding");
 }
 
-const getForecast = async (isoDay) => {
-  const r = await warmFetch(`${API_BASE}/forecast/${isoDay}`);
+// one-time ping to wake the instance
+warmFetch(`${API_BASE}/health`).catch(() => {});
+
+const getForecast = async (isoUtcDay) => {
+  const r = await warmFetch(`${API_BASE}/forecast/${isoUtcDay}`);
   return r.json();
 };
-const getSdo = async (isoDay) => {
-  const r = await warmFetch(`${API_BASE}/sdo/${isoDay}`);
+
+const getSdo = async (isoUtcDay) => {
+  const r = await warmFetch(`${API_BASE}/sdo/${isoUtcDay}`);
   return r.json();
 };
 
