@@ -17,11 +17,10 @@ origins_env = os.getenv("FRONTEND_ORIGIN", "*")
 origins = [o.strip() for o in os.getenv("FRONTEND_ORIGINS", "https://solarsense.netlify.app").split(",")]
 
 app.add_middleware(
-    CORSMiddleware,
-    allow_origins=origins,
-    allow_methods=["GET", "OPTIONS"],
-    allow_headers=["*"],
-    allow_credentials=False,  # (keep false unless you use cookies)
+  CORSMiddleware,
+  allow_origins=["*"],   # or your Netlify URL(s)
+  allow_methods=["GET", "OPTIONS"],
+  allow_headers=["*"],
 )
 app.add_middleware(GZipMiddleware, minimum_size=500) 
 

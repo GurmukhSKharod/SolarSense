@@ -34,9 +34,13 @@ const PRODUCTION_API = 'https://solarsense-api.onrender.com';
 
 // API base (works for local dev + Netlify prod)
 const isLocal = location.hostname === "localhost" || location.hostname === "127.0.0.1";
-const API_BASE = isLocal
-  ? "http://localhost:8000"
-  : "https://solarsense-api.onrender.com"; // <—  Render URL
+const API_BASE =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_API_BASE) ||
+  (typeof window !== "undefined" && window.__API_BASE__) ||
+  ((location.hostname === "localhost" || location.hostname === "127.0.0.1")
+    ? "http://localhost:8000"
+    : "/api");
+
 
 console.log("API_BASE =", API_BASE);
 

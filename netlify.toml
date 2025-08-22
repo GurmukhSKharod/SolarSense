@@ -1,21 +1,19 @@
-# netlify.toml
-
 [build]
-  base    = "react-tailwind-vanilla"
+  base = "react-tailwind-vanilla"
   command = "npm ci && npm run build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "20"
 
-# Proxy all API calls to Render (kills CORS)
+# Proxy first (avoids CORS)
 [[redirects]]
   from = "/api/*"
   to   = "https://solarsense-api.onrender.com/:splat"
   status = 200
-  force  = true
+  force = true
 
-# SPA fallback so refresh works
+# SPA fallback last
 [[redirects]]
   from = "/*"
   to   = "/index.html"
