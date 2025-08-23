@@ -1,7 +1,7 @@
 # scripts/backend/api.py
 import os
 import asyncio
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta, timezone
 
@@ -14,7 +14,6 @@ from starlette.middleware.gzip import GZipMiddleware
 from functools import lru_cache
 
 app = FastAPI()
-app.add_middleware(GZipMiddleware, minimum_size=500)
 
 FRONTEND = os.getenv("FRONTEND_ORIGIN", "https://solarsense.netlify.app")
 EXTRA    = os.getenv("EXTRA_ORIGINS", "")  # comma-separated if you want more
@@ -25,12 +24,13 @@ allowed += [o.strip() for o in EXTRA.split(",") if o.strip()]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed,
+    allow_origins=["*"],          #  works with Netlify immediately
     allow_credentials=False,
     allow_methods=["GET", "HEAD", "OPTIONS"],
     allow_headers=["*"],
 )
 
+app.add_middleware(GZipMiddleware, minimum_size=500)
 
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""
