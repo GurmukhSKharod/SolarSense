@@ -106,6 +106,14 @@ async function warmFetch(url, opts = {}, tries = 6) {
   throw new Error("API not responding");
 }
 
+const getSummary = async (isoUtcDay, opts={}) => {
+  const r = await warmFetch(`${API_BASE}/summary/${isoUtcDay}`, opts);
+  return r.json();
+};
+
+const forecastAbortRef = useRef(null);
+
+
 // Use the wrapper for all calls
 const getForecast = async (isoUtcDay) => {
   const r = await warmFetch(`${API_BASE}/forecast/${isoUtcDay}`);
@@ -166,44 +174,60 @@ const App = () => {
     });
 
   useEffect(() => {
-  let cancelled = false;
+    let cancelled = false;
 
-  (async () => {
+    (async () => {
+      // 1) QUICK hourly: show immediately
       try {
-        // wake the API first (handles cold start with retries)
-        await warmFetch(`${API_BASE}/health`);
-
-        // -------- 1) FORECAST (then chart) --------
-        const data = await getForecast(day);
-        if (cancelled) return;
-
-        if (data && data.hourly_pred?.length === 24) {
-          const predHours = data.hourly_pred.map((h) => ({
+        const s = await getSummary(day);
+        if (!cancelled && s?.hourly_pred?.length === 24) {
+          const predHours = s.hourly_pred.map(h => ({
             hour: h.hour,
             time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
             predClass: `${h.class}-Class`,
           }));
-          const actualByHour = new Map(
-            (data.hourly_actual || []).map((h) => [h.hour, `${h.class}-Class`])
-          );
-          const hours = predHours.map((h) => ({
+          const actualByHour = new Map((s.hourly_actual || []).map(h => [h.hour, `${h.class}-Class`]));
+          const hours = predHours.map(h => ({
             ...h,
             actualClass: actualByHour.get(h.hour) || null,
-            classIndex: ["A", "B", "C", "M", "X"].indexOf(
-              (h.predClass || "A").charAt(0)
-            ),
+            classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
           }));
           setData(hours);
-        } else {
-          setData(makeDummy());
+        }
+      } catch (_) {}
+
+      // 2) HEAVY minute + refined hourly: abort previous if user changes day
+      try {
+        forecastAbortRef.current?.abort();
+        const ac = new AbortController();
+        forecastAbortRef.current = ac;
+
+        const res = await warmFetch(`${API_BASE}/forecast/${day}`, { signal: ac.signal });
+        const data = await res.json();
+        if (cancelled) return;
+
+        // ----- hourly (refined)
+        if (data?.hourly_pred?.length === 24) {
+          const predHours = data.hourly_pred.map(h => ({
+            hour: h.hour,
+            time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
+            predClass: `${h.class}-Class`,
+          }));
+          const actualByHour = new Map((data.hourly_actual || []).map(h => [h.hour, `${h.class}-Class`]));
+          const hours = predHours.map(h => ({
+            ...h,
+            actualClass: actualByHour.get(h.hour) || null,
+            classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
+          }));
+          setData(hours);
         }
 
+        // ----- minute series (Pred + Actual)
         const pred = (data?.minute_pred || [])
-          .map((d) => [Date.parse(d.timestamp), Number(d.long_flux_pred)])
+          .map(d => [Date.parse(d.timestamp), Number(d.long_flux_pred)])
           .filter(([, v]) => Number.isFinite(v) && v > 0);
-
         const act = (data?.minute_actual || [])
-          .map((d) => [Date.parse(d.timestamp), Number(d.long_flux)])
+          .map(d => [Date.parse(d.timestamp), Number(d.long_flux)])
           .filter(([, v]) => Number.isFinite(v) && v > 0);
 
         if (pred.length || act.length) {
@@ -214,26 +238,22 @@ const App = () => {
             row.actual = v;
             map.set(ts, row);
           }
-          const merged = [...map.entries()]
-            .sort((a, b) => a[0] - b[0])
-            .map(([, v]) => v);
+          const merged = [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
           setChartData(merged);
         } else {
           setChartData([]);
         }
-
-        // -------- 2) SDO (sequential, after forecast) --------
-        const payload = await getSdo(day);
-        if (cancelled) return;
-        setSdo(payload || null);
-        setFadeKey((k) => k + 1);
       } catch (e) {
-        console.error("load failed:", e);
-        // optional: show a small “Backend waking up…” message in the UI
+        if (e?.name !== "AbortError") {
+          console.warn("forecast load failed:", e);
+        }
       }
     })();
 
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      forecastAbortRef.current?.abort();
+    };
   }, [day]);
 
   // live clock

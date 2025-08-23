@@ -11,6 +11,7 @@ from scripts.backend.collect.fetch import fetch_range_minute, fetch_day_minute
 from scripts.backend.collect.sdo   import build_sdo_payload
 from scripts.backend.model.predict_pytorch import predict_from_seed_df, WINDOW
 from starlette.middleware.gzip import GZipMiddleware
+from functools import lru_cache
 
 app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=500)
@@ -29,6 +30,7 @@ app.add_middleware(
     allow_methods=["GET", "HEAD", "OPTIONS"],
     allow_headers=["*"],
 )
+
 
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""
@@ -161,3 +163,35 @@ def sdo(date_iso: str):
         minute_act=actual_df if not actual_df.empty else None,
     )
     return payload
+
+
+
+def _iso(df, col="timestamp"):
+    df = df.copy()
+    df[col] = pd.to_datetime(df[col], utc=True).dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+    return df
+
+@lru_cache(maxsize=128)
+def _summary_cached(date_iso: str):
+    day_start, day_end = _utc_day_window(date_iso)
+
+    # Actual hourly (cheap: NOAA JSON is already @lru_cache in fetch.py)
+    actual_df = fetch_range_minute(day_start, day_end)
+    act_hour  = _avg_hourly(actual_df, "long_flux", "goes_class")
+
+    # "Fast" predicted hourly: reuse previous day's same-hour actuals
+    prev_start = day_start - timedelta(days=1)
+    prev_end   = day_start - timedelta(minutes=1)
+    prev_df    = fetch_range_minute(prev_start, prev_end)
+    prev_hour  = _avg_hourly(prev_df, "long_flux", "goes_class")
+    prev_hour  = prev_hour.rename(columns={"long_flux": "long_flux_pred"})[["hour", "long_flux_pred", "class"]]
+
+    return {
+        "date": date_iso,
+        "hourly_actual": act_hour.to_dict(orient="records"),
+        "hourly_pred":   prev_hour.to_dict(orient="records"),
+    }
+
+@app.get("/summary/{date_iso}")
+def summary(date_iso: str):
+    return _summary_cached(date_iso)
