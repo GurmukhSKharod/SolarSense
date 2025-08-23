@@ -14,10 +14,18 @@ from starlette.middleware.gzip import GZipMiddleware
 app = FastAPI()
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+FRONTEND = os.getenv("FRONTEND_ORIGIN", "https://solarsense.netlify.app")
+EXTRA    = os.getenv("EXTRA_ORIGINS", "")  # comma-separated if you want more
+
+allowed = [FRONTEND.strip(), "http://localhost:8080", "http://localhost:5173",
+           "http://localhost:3000", "http://127.0.0.1:8080"]
+allowed += [o.strip() for o in EXTRA.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],      
-    allow_methods=["*"],
+    allow_origins=allowed,
+    allow_credentials=False,
+    allow_methods=["GET", "HEAD", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -46,10 +54,23 @@ def _avg_hourly(df: pd.DataFrame, flux_col: str, class_col: str):
     )
     return out[["hour", flux_col, "class"]]
 
+@app.on_event("startup")
+def _warm():
+    try:
+        from scripts.backend.model.predict_pytorch import _loaded_assets
+        _ = _loaded_assets()  # jit/load once
+    except Exception as e:
+        print("Warmup failed:", e)
+        
 
 @app.get("/health")
 def health():
     return {"ok": True}
+
+@app.head("/health")
+def health_head():
+    # Render pings via HEAD; keep it green instead of 405.
+    return Response(status_code=200)
 
 
 @app.get("/forecast/{date_iso}")
