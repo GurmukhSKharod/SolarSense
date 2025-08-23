@@ -1,5 +1,6 @@
 # scripts/backend/api.py
 import os
+import asyncio
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime, timedelta, timezone
@@ -54,6 +55,21 @@ def _avg_hourly(df: pd.DataFrame, flux_col: str, class_col: str):
     )
     return out[["hour", flux_col, "class"]]
 
+async def _bg_warm():
+    try:
+        # import here to avoid circulars
+        from scripts.backend.model.predict_pytorch import _loaded_assets
+        # run heavy model load in a worker thread so we don't block the loop
+        await asyncio.to_thread(_loaded_assets)
+        print("Warmup completed")
+    except Exception as e:
+        print("Warmup failed:", e)
+
+@app.on_event("startup")
+async def schedule_warm():
+    # schedule and return immediately so Uvicorn can finish startup & bind
+    asyncio.create_task(_bg_warm())
+
 @app.on_event("startup")
 def _warm():
     try:
@@ -61,7 +77,7 @@ def _warm():
         _ = _loaded_assets()  # jit/load once
     except Exception as e:
         print("Warmup failed:", e)
-        
+
 
 @app.get("/health")
 def health():

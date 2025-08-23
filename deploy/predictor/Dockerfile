@@ -14,10 +14,11 @@ WORKDIR /app
 COPY . /app
 ENV PYTHONPATH=/app
 ENV PORT=10000
+EXPOSE 10000
 
 # keep memory low: single worker; NO_SUNPY disables heavy bits in sdo.py
 ENV WEB_CONCURRENCY=1
 ENV NO_SUNPY=1
 
 CMD micromamba run -n base python -m uvicorn scripts.backend.api:app \
-    --host 0.0.0.0 --port ${PORT} --workers 1
+    --host 0.0.0.0 --port ${PORT:-10000} --workers 1
