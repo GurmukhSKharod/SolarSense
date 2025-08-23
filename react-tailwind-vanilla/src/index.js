@@ -91,27 +91,35 @@ const localDayToUTCISO = (isoLocal) => {
 
 // Retry helper to survive Render cold starts / slow first byte
 async function warmFetch(url, opts = {}, tries = 6) {
-  let delay = 1200; // 1.2s → ~8s
+  let delay = 1200;
   for (let i = 0; i < tries; i++) {
+    const firstByteCtrl = new AbortController();
+    const combinedSignal = opts.signal
+      ? (AbortSignal.any ? AbortSignal.any([firstByteCtrl.signal, opts.signal])
+                         : firstByteCtrl.signal)
+      : firstByteCtrl.signal;
+
     try {
-      const ctrl = new AbortController();
-      const t = setTimeout(() => ctrl.abort(), 60000); // 60s first-byte timeout
-      const res = await fetch(url, { ...opts, signal: ctrl.signal, mode: "cors", cache: "no-store" });
+      const t = setTimeout(() => firstByteCtrl.abort(), 60000);
+      const res = await fetch(url, { ...opts, signal: combinedSignal, mode: "cors", cache: "no-store" });
       clearTimeout(t);
       if (res.ok) return res;
-    } catch (_) {}
+    } catch (e) {
+      // if the caller aborted, bubble it
+      if (e?.name === "AbortError" && opts.signal?.aborted) throw e;
+    }
+
     await new Promise(r => setTimeout(r, delay));
     delay = Math.min(delay * 1.8, 8000);
   }
   throw new Error("API not responding");
 }
 
+
 const getSummary = async (isoUtcDay, opts={}) => {
   const r = await warmFetch(`${API_BASE}/summary/${isoUtcDay}`, opts);
   return r.json();
 };
-
-const forecastAbortRef = useRef(null);
 
 
 // Use the wrapper for all calls
@@ -146,6 +154,10 @@ const App = () => {
   const [sdo, setSdo] = useState(null);
   const [fadeKey, setFadeKey] = useState(0);          // for SDO panel fade
 
+  const forecastAbortRef = useRef(null);
+  const summaryAbortRef  = useRef(null);
+  const sdoAbortRef      = useRef(null);
+
   // limit how far back a user can go (in UTC)
   const MIN_DAYS_BACK = 6;
   const minAllowedUTC = shiftDay(todayUTC(), -MIN_DAYS_BACK);
@@ -177,9 +189,13 @@ const App = () => {
     let cancelled = false;
 
     (async () => {
-      // 1) QUICK hourly: show immediately
+      // ---- 1) QUICK hourly (summary)
       try {
-        const s = await getSummary(day);
+        summaryAbortRef.current?.abort();
+        const ac = new AbortController();
+        summaryAbortRef.current = ac;
+
+        const s = await getSummary(day, { signal: ac.signal });
         if (!cancelled && s?.hourly_pred?.length === 24) {
           const predHours = s.hourly_pred.map(h => ({
             hour: h.hour,
@@ -194,19 +210,20 @@ const App = () => {
           }));
           setData(hours);
         }
-      } catch (_) {}
+      } catch (e) {
+        if (e?.name !== "AbortError") console.warn("summary failed:", e);
+      }
 
-      // 2) HEAVY minute + refined hourly: abort previous if user changes day
+      // ---- 2) HEAVY minute + refined hourly
       try {
         forecastAbortRef.current?.abort();
         const ac = new AbortController();
         forecastAbortRef.current = ac;
 
-        const res = await warmFetch(`${API_BASE}/forecast/${day}`, { signal: ac.signal });
+        const res  = await warmFetch(`${API_BASE}/forecast/${day}`, { signal: ac.signal });
         const data = await res.json();
         if (cancelled) return;
 
-        // ----- hourly (refined)
         if (data?.hourly_pred?.length === 24) {
           const predHours = data.hourly_pred.map(h => ({
             hour: h.hour,
@@ -222,7 +239,6 @@ const App = () => {
           setData(hours);
         }
 
-        // ----- minute series (Pred + Actual)
         const pred = (data?.minute_pred || [])
           .map(d => [Date.parse(d.timestamp), Number(d.long_flux_pred)])
           .filter(([, v]) => Number.isFinite(v) && v > 0);
@@ -238,23 +254,46 @@ const App = () => {
             row.actual = v;
             map.set(ts, row);
           }
-          const merged = [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-          setChartData(merged);
+          setChartData([...map.entries()].sort((a,b)=>a[0]-b[0]).map(([,v])=>v));
         } else {
           setChartData([]);
         }
       } catch (e) {
-        if (e?.name !== "AbortError") {
-          console.warn("forecast load failed:", e);
-        }
+        if (e?.name !== "AbortError") console.warn("forecast failed:", e);
       }
     })();
 
     return () => {
       cancelled = true;
+      summaryAbortRef.current?.abort();
       forecastAbortRef.current?.abort();
     };
   }, [day]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        sdoAbortRef.current?.abort();
+        const ac = new AbortController();
+        sdoAbortRef.current = ac;
+
+        const r = await warmFetch(`${API_BASE}/sdo/${day}`, { signal: ac.signal });
+        const payload = await r.json();
+        if (!cancelled) {
+          setSdo(payload || null);
+          setFadeKey(k => k + 1);
+        }
+      } catch (e) {
+        if (e?.name !== "AbortError") console.warn("sdo failed:", e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      sdoAbortRef.current?.abort();
+    };
+  }, [day]);
+
 
   // live clock
   useEffect(() => {
