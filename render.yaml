@@ -3,13 +3,12 @@ services:
     name: solarsense-api
     env: docker
     plan: free
-    rootDir: deploy/predictor
+    region: oregon
     autoDeploy: true
-    healthCheckPath: /health
+    dockerfilePath: deploy/predictor/Dockerfile   # <— points to your file
+    dockerContext: .                               # <— build context is repo root
     envVars:
-      - key: PORT
-        value: "10000"
       - key: NO_SUNPY
         value: "1"
-      - key: WEB_CONCURRENCY
-        value: "1"
+      - key: PORT
+        value: "10000"
