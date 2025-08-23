@@ -70,14 +70,6 @@ async def schedule_warm():
     # schedule and return immediately so Uvicorn can finish startup & bind
     asyncio.create_task(_bg_warm())
 
-@app.on_event("startup")
-def _warm():
-    try:
-        from scripts.backend.model.predict_pytorch import _loaded_assets
-        _ = _loaded_assets()  # jit/load once
-    except Exception as e:
-        print("Warmup failed:", e)
-
 
 @app.get("/health")
 def health():
@@ -95,13 +87,13 @@ def forecast(date_iso: str):
     day_start, day_end = _utc_day_window(date_iso)
 
     # Seed = previous UTC day, exactly WINDOW minutes (24h) if your model expects that
-    seed_start = day_start - timedelta(minutes=WINDOW)
     seed_end   = day_start - timedelta(minutes=1)
+    seed_start = seed_end - timedelta(minutes=60 - 1)
 
     print("WINDOW (seed minutes) =", WINDOW)
 
     try:
-        seed_df = fetch_range_minute(seed_start, seed_end)
+        seed_df = fetch_range_minute(seed_start, seed_end)[["timestamp","long_flux","short_flux"]]
     except RuntimeError as e:
         # Clear message for the UI
         raise HTTPException(status_code=422, detail=str(e))

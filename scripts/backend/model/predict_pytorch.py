@@ -16,7 +16,7 @@ MODEL_PATH  = MODEL_DIR / "flux_lstm_60step.pth"
 
 # Window (seed length) & horizon must match your training setup
 SEQ_LEN = int(os.getenv("SEQ_LEN", 60))   # minutes of history; 60 matches your *60step* model
-WINDOW  = 1440                       # exported for api.py
+WINDOW  = SEQ_LEN                       # exported for api.py
 HORIZON  = 1440          # minutes to forecast (24h)
 STEP     = 60            # model outputs 60 minutes at a time
 
@@ -76,6 +76,12 @@ def _loaded_assets():
     ).to(device)
     model.load_state_dict(torch.load(MODEL_PATH, map_location=device))
     model.eval()
+
+    # sanity: expected window from checkpoint vs code
+    expected_window = model.linear.in_features // HIDDEN_SIZE
+    print("MODEL expects WINDOW =", expected_window, " (code WINDOW =", WINDOW, ")")
+    if expected_window != WINDOW:
+        raise RuntimeError(f"Model/window mismatch: checkpoint expects {expected_window}, code set to {WINDOW}")
 
     x_scaler = joblib.load(XSC_PATH)
     y_scaler = joblib.load(YS_PATH)
