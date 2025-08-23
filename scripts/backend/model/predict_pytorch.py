@@ -15,7 +15,7 @@ YS_PATH     = MODEL_DIR / "y_scaler_60step.pkl"
 MODEL_PATH  = MODEL_DIR / "flux_lstm_60step.pth"
 
 # Window (seed length) & horizon must match your training setup
-SEQ_LEN = int(os.getenv("SEQ_LEN", 60))   # minutes of history; 60 matches your *60step* model
+SEQ_LEN = int(os.getenv("SEQ_LEN", 1440))   # minutes of history; 60 matches your *60step* model
 WINDOW  = SEQ_LEN                       # exported for api.py
 HORIZON  = 1440          # minutes to forecast (24h)
 STEP     = 60            # model outputs 60 minutes at a time

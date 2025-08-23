@@ -88,7 +88,7 @@ def forecast(date_iso: str):
 
     # Seed = previous UTC day, exactly WINDOW minutes (24h) if your model expects that
     seed_end   = day_start - timedelta(minutes=1)
-    seed_start = seed_end - timedelta(minutes=60 - 1)
+    seed_start = seed_end - timedelta(minutes=WINDOW - 1)
 
     print("WINDOW (seed minutes) =", WINDOW)
 
