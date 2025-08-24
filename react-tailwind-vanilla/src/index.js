@@ -123,15 +123,77 @@ const getSummary = async (isoUtcDay, opts={}) => {
 
 
 // Use the wrapper for all calls
-const getForecast = async (isoUtcDay) => {
-  const r = await warmFetch(`${API_BASE}/forecast/${isoUtcDay}`);
-  return r.json();
-};
+// const getForecast = async (isoUtcDay) => {
+//   const r = await warmFetch(`${API_BASE}/forecast/${isoUtcDay}`);
+//   return r.json();
+// };
 
 const getSdo = async (isoUtcDay) => {
   const r = await warmFetch(`${API_BASE}/sdo/${isoUtcDay}`);
   return r.json();
 };
+
+
+// ---- per-day memo (RAM + sessionStorage) for /summary ----
+const SUMMARY_CACHE = new Map();
+const ssKey = (d) => `ss:summary:${d}`;
+
+async function getSummaryCached(isoUtcDay, opts = {}) {
+  // RAM cache
+  if (SUMMARY_CACHE.has(isoUtcDay)) return SUMMARY_CACHE.get(isoUtcDay);
+
+  // sessionStorage cache
+  const hit = sessionStorage.getItem(ssKey(isoUtcDay));
+  if (hit) {
+    const parsed = JSON.parse(hit);
+    SUMMARY_CACHE.set(isoUtcDay, parsed);
+    return parsed;
+  }
+
+  // fetch and store
+  const res = await warmFetch(`${API_BASE}/summary/${isoUtcDay}`, opts);
+  const json = await res.json();
+  SUMMARY_CACHE.set(isoUtcDay, json);
+  sessionStorage.setItem(ssKey(isoUtcDay), JSON.stringify(json));
+  return json;
+}
+
+
+
+// ---- hourly → chart rows (24 points) ----
+function hourlyToSeries(isoDay, hourlyPred = [], hourlyAct = []) {
+  const base = new Date(`${isoDay}T00:00:00Z`).getTime();
+  const p = new Map(hourlyPred.map(h => [h.hour, Number(h.long_flux_pred)]));
+  const a = new Map(hourlyAct .map(h => [h.hour, Number(h.long_flux     )]));
+  const rows = [];
+  for (let h = 0; h < 24; h++) {
+    rows.push({
+      t: new Date(base + h * 3600_000),
+      pred: p.get(h) ?? null,
+      actual: a.get(h) ?? null,
+    });
+  }
+  return rows;
+}
+
+// ---- utilities for peaks from hourly ----
+const hh = (n) => String(n).padStart(2, "0");
+function peakFromHourly(hourly, fluxKey) {
+  if (!Array.isArray(hourly) || hourly.length === 0) return null;
+  let best = null;
+  for (const h of hourly) {
+    const v = Number(h[fluxKey]);
+    if (!Number.isFinite(v)) continue;
+    if (!best || v > best[fluxKey]) best = h;
+  }
+  if (!best) return null;
+  return {
+    class: `${best.class}-Class`,     // server already sends class for hourly rows
+    utc: `${hh(best.hour)}:00`,
+    value: Number(best[fluxKey]),
+  };
+}
+
 
 /* Fallback: pull peaks from a summary sentence */
 const parsePeaksFromSummary = (summary = "") => {
@@ -187,12 +249,14 @@ const App = () => {
 
   useEffect(() => {
     let cancelled = false;
+    const ac = new AbortController();
 
     (async () => {
-      // 1) QUICK hourly: /summary (fast, no model)
       try {
-        const s = await getSummary(day);
-        if (!cancelled && s?.hourly_pred?.length === 24) {
+        const s = await getSummaryCached(day, { signal: ac.signal });
+
+        // ----- Hourly strip tiles
+        if (s?.hourly_pred?.length === 24) {
           const predHours = s.hourly_pred.map(h => ({
             hour: h.hour,
             time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
@@ -204,65 +268,31 @@ const App = () => {
             actualClass: actualByHour.get(h.hour) || null,
             classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
           }));
-          setData(hours);
-        }
-      } catch (_) {
-        // show dummy if you want, but don't crash
-      }
-
-      // 2) HEAVY: /forecast (minutes + refined hourly). Abort if the day changes.
-      try {
-        forecastAbortRef.current?.abort();
-        const ac = new AbortController();
-        forecastAbortRef.current = ac;
-
-        const res = await warmFetch(`${API_BASE}/forecast/${day}`, { signal: ac.signal });
-        const data = await res.json();
-        if (cancelled) return;
-
-        if (data?.hourly_pred?.length === 24) {
-          const predHours = data.hourly_pred.map(h => ({
-            hour: h.hour,
-            time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
-            predClass: `${h.class}-Class`,
-          }));
-          const actualByHour = new Map((data.hourly_actual || []).map(h => [h.hour, `${h.class}-Class`]));
-          const hours = predHours.map(h => ({
-            ...h,
-            actualClass: actualByHour.get(h.hour) || null,
-            classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
-          }));
-          setData(hours);
+          if (!cancelled) setData(hours);
+        } else if (!cancelled) {
+          setData(makeDummy());
         }
 
-        const pred = (data?.minute_pred || [])
-          .map(d => [Date.parse(d.timestamp), Number(d.long_flux_pred)])
-          .filter(([, v]) => Number.isFinite(v) && v > 0);
-        const act  = (data?.minute_actual || [])
-          .map(d => [Date.parse(d.timestamp), Number(d.long_flux)])
-          .filter(([, v]) => Number.isFinite(v) && v > 0);
+        // ----- Chart from hourly (24 points)
+        if (!cancelled) {
+          setChartData(hourlyToSeries(day, s.hourly_pred || [], s.hourly_actual || []));
+        }
 
-        if (pred.length || act.length) {
-          const map = new Map();
-          for (const [ts, v] of pred) map.set(ts, { t: new Date(ts), pred: v });
-          for (const [ts, v] of act) {
-            const row = map.get(ts) || { t: new Date(ts) };
-            row.actual = v;
-            map.set(ts, row);
-          }
-          const merged = [...map.entries()].sort((a, b) => a[0] - b[0]).map(([, v]) => v);
-          setChartData(merged);
-        } else {
-          setChartData([]);
+        // ----- Peaks from hourly (for cards)
+        if (!cancelled) {
+          setPeaks({
+            pred_peak: peakFromHourly(s.hourly_pred, "long_flux_pred"),
+            obs_peak:  peakFromHourly(s.hourly_actual, "long_flux"),
+          });
         }
       } catch (e) {
-        if (e?.name !== "AbortError") console.warn("forecast load failed:", e);
+        if (e?.name !== "AbortError") console.warn("summary load failed:", e);
       }
     })();
 
     return () => {
       cancelled = true;
-      forecastAbortRef.current?.abort();
+      ac.abort();
     };
   }, [day]);
 
@@ -339,15 +369,18 @@ const App = () => {
   const headLevel = flareData?.[0]?.predClass || flareData?.[0]?.level || "";
 
   // parse peaks if needed
-  const peaks = sdo
-    ? {
-        ...(sdo.pred_peak && { pred_peak: sdo.pred_peak }),
-        ...(sdo.obs_peak && { obs_peak: sdo.obs_peak }),
-        ...(!sdo.pred_peak || !sdo.obs_peak
-          ? parsePeaksFromSummary(sdo.summary)
-          : {}),
-      }
-    : {};
+  // const peaks = sdo
+  //   ? {
+  //       ...(sdo.pred_peak && { pred_peak: sdo.pred_peak }),
+  //       ...(sdo.obs_peak && { obs_peak: sdo.obs_peak }),
+  //       ...(!sdo.pred_peak || !sdo.obs_peak
+  //         ? parsePeaksFromSummary(sdo.summary)
+  //         : {}),
+  //     }
+  //   : {};
+
+  
+  const [peaks, setPeaks] = useState({ pred_peak: null, obs_peak: null });
 
   // update tiny UTC time label w/o re-render
   const onVideoTimeUpdate = () => {
@@ -360,6 +393,10 @@ const App = () => {
     const mm = String(totalMin % 60).padStart(2, "0");
     el.textContent = `${hh}:${mm} UTC`;
   };
+
+  // choose peak sources: hourly → SDO → parsed summary text
+  const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
+  const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
 
   return (
     <div className={`bg-gradient-to-b ${bgGrad} ${textMain} min-h-screen p-4 sm:p-6 font-sans transition-colors duration-300`}>
@@ -488,14 +525,14 @@ const App = () => {
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Predicted Peak</p>
               <p className="text-sm font-semibold">
-                {peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} UTC` : "—"}
+                {peakPred ? `${peakPred.class} at ${peakPred.utc} UTC` : "—"}
               </p>
             </div>
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Observed Peak</p>
               <p className="text-sm font-semibold">
-                {peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} UTC` : "—"}
+                {peakObs ? `${peakObs.class} at ${peakObs.utc} UTC` : "—"}
               </p>
             </div>
 
