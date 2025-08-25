@@ -768,9 +768,7 @@ const App = () => {
               {peaks?.pred_peak && peaks?.obs_peak && (
                 <p className="text-xs mt-1">
                   Observed is{" "}
-                  <span className="font-medium">
                     {(peaks.obs_peak.flux / peaks.pred_peak.flux).toFixed(2)}×
-                  </span>{" "}
                   of predicted (
                   {((peaks.obs_peak.flux / peaks.pred_peak.flux - 1) * 100).toFixed(0)}%). Classes:{" "}
                   {peaks.pred_peak.class} - {peaks.obs_peak.class}
