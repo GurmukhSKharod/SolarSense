@@ -770,9 +770,15 @@ const App = () => {
                   Observed is{" "}
                     {(peaks.obs_peak.flux / peaks.pred_peak.flux).toFixed(2)}×
                   of predicted (
-                  {((peaks.obs_peak.flux / peaks.pred_peak.flux - 1) * 100).toFixed(0)}%). Classes:{" "}
-                  {peaks.pred_peak.class} - {peaks.obs_peak.class}
+                  {((peaks.obs_peak.flux / peaks.pred_peak.flux - 1) * 100).toFixed(0)}%). 
+                  <p className="text-sm mt-1">
+                    Classes:{" "}
+                    {peaks.pred_peak.class} - {peaks.obs_peak.class}. 
+                  </p>
                 </p>
+                
+
+                
               )}
 
               {/* {(() => {
