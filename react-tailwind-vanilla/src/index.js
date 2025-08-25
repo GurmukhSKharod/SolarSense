@@ -767,17 +767,17 @@ const App = () => {
                   </span>{" "}
                   of predicted (
                   {((peaks.obs_peak.flux / peaks.pred_peak.flux - 1) * 100).toFixed(0)}%). Classes:{" "}
-                  {peaks.pred_peak.class} → {peaks.obs_peak.class}
+                  {peaks.pred_peak.class} - {peaks.obs_peak.class}
                 </p>
               )}
 
-              {(() => {
+              {/* {(() => {
               const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
               const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
               return peakPred && peakObs ? (
                 <PeakQuiz pred={peakPred} obs={peakObs} dark={dark} />
               ) : null;
-              })()}
+              })()} */}
 
             </div>
 
