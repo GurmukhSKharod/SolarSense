@@ -745,8 +745,7 @@ const App = () => {
 
               {peaks?.pred_peak && peaks?.obs_peak && (
                 <p className="text-sm">
-                  Difference: {fmtFlux(peaks.obs_peak.flux - peaks.pred_peak.flux)} →{" "}
-                  {peaks.obs_peak.flux > peaks.pred_peak.flux ? "Observed higher" : "Predicted higher"}
+                  Difference: {fmtFlux(peaks.obs_peak.flux - peaks.pred_peak.flux)}
                 </p>
               )}
 
@@ -760,7 +759,7 @@ const App = () => {
 
               {/* keep the plain descriptive quick-check sentence */}
               {peaks?.pred_peak && peaks?.obs_peak && (
-                <p className="text-xs mt-2 opacity-80">
+                <p className="text-xs mt-1">
                   Observed is{" "}
                   <span className="font-medium">
                     {(peaks.obs_peak.flux / peaks.pred_peak.flux).toFixed(2)}×
