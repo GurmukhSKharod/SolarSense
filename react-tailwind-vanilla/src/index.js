@@ -121,6 +121,18 @@ const getSummary = async (isoUtcDay, opts={}) => {
   return r.json();
 };
 
+// Build NASA GSFC daily AIA-171 movie URL for the given UTC date (YYYY-MM-DD).
+const gsfcAIA171UrlFor = (isoUtcDay) => {
+  const y = isoUtcDay.slice(0, 4);
+  const m = isoUtcDay.slice(5, 7);
+  const d = isoUtcDay.slice(8, 10);
+  return `https://sdo.gsfc.nasa.gov/assets/img/dailymov/${y}/${m}/${y}${m}${d}_1024_0171.mp4`;
+};
+
+// SWPC "latest" as a final safety fallback
+const SWPC_AIA171_LATEST_MP4 = "https://services.swpc.noaa.gov/images/animations/sdo-aia-171/latest.mp4";
+
+
 
 // Use the wrapper for all calls
 // const getForecast = async (isoUtcDay) => {
@@ -373,6 +385,10 @@ const App = () => {
 
   const [peaks, setPeaks] = useState({ pred_peak: null, obs_peak: null });
 
+  const [movieUrl, setMovieUrl] = useState(null); // currently selected video URL
+  const [movieFallbackTry, setMovieFallbackTry] = useState(0); // 0=none,1=yesterday,2=latest
+
+
   // prevent moving into the future (UTC)
   const goPrev = () =>
     setDay((d) => {
@@ -439,6 +455,11 @@ const App = () => {
         const payload = await getSdoLite(day, { signal: ac.signal });
         if (cancelled) return;
         setSdo(payload || null);
+
+        // always try the date-specific GSFC daily first
+        setMovieUrl(gsfcAIA171UrlFor(day));
+        setMovieFallbackTry(0);
+
         setFadeKey(k => k + 1);
       } catch (e) {
         if (e?.name !== "AbortError") console.warn("sdo-lite load failed:", e);
@@ -522,6 +543,23 @@ const App = () => {
     const mm = String(totalMin % 60).padStart(2, "0");
     el.textContent = `${hh}:${mm} UTC`;
   };
+
+  const onVideoError = () => {
+    // If today’s daily movie isn’t published yet (usually ~21:00 UTC), fall back fast.
+    if (movieFallbackTry === 0) {
+      const prev = shiftDay(day, -1);
+      setMovieUrl(gsfcAIA171UrlFor(prev));
+      setMovieFallbackTry(1);
+      return;
+    }
+    if (movieFallbackTry === 1) {
+      setMovieUrl(SWPC_AIA171_LATEST_MP4);
+      setMovieFallbackTry(2);
+      return;
+    }
+    // Already tried all fallbacks — keep whatever is set.
+  };
+
 
   // choose peak sources: hourly → SDO → parsed summary text
   const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
@@ -714,8 +752,8 @@ const App = () => {
                 <>
                   <video
                     ref={videoRef}
-                    key={sdo?.movie_url || "no-video"}
-                    src={sdo?.movie_url || ""}
+                    key={movieUrl || sdo?.movie_url || "no-video"}
+                    src={movieUrl || sdo?.movie_url || ""}
                     poster={sdo?.poster_url || ""}
                     preload="metadata"
                     autoPlay
@@ -723,22 +761,26 @@ const App = () => {
                     muted
                     playsInline
                     onTimeUpdate={onVideoTimeUpdate}
+                    onError={onVideoError}
                     style={{
                       width: "100%",
                       height: "100%",
                       objectFit: "cover",
-                      objectPosition: "center 46%",
-                      transform: "scale(1.03)",
+                      // nudge the framing up slightly to crop the caption band;
+                      // you also keep the hard mask below for full coverage.
+                      objectPosition: "center 40%",
+                      transform: "scale(1.02)",
                     }}
                   />
+
                   {/* masks to fully hide SDO caption */}
                   <div
                     className="absolute inset-x-0 bottom-0 pointer-events-none"
-                    style={{ height: "22%", background: `linear-gradient(to bottom, transparent, ${maskColor})` }}
+                    style={{ height: "26%", background: `linear-gradient(to bottom, transparent, ${maskColor})` }}
                   />
                   <div
                     className="absolute inset-x-0 bottom-0 pointer-events-none"
-                    style={{ height: "10%", background: maskColor }}
+                    style={{ height: "12%", background: maskColor }}
                   />
                   {/* region overlays */}
                   {(sdo.regions || []).map((r, idx) => {
