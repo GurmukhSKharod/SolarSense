@@ -695,20 +695,20 @@ const App = () => {
           <div ref={leftColRef} className="md:col-span-1 space-y-3">
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Predicted Peak</p>
-              <p className="text-sm font-semibold">
-                {peaks?.pred_peak
-                  ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} UTC (${fmtFlux(peaks.pred_peak.utc)})`
-                  : "—"}
-              </p>
+              {peaks?.pred_peak && (
+                <p className="text-sm">
+                  Predicted class {peaks.pred_peak.class} at {peaks.pred_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.pred_peak.flux)})
+                </p>
+              )}
             </div>
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Observed Peak</p>
-              <p className="text-sm font-semibold">
-                {peaks?.obs_peak
-                  ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} UTC (${fmtFlux(peaks.obs_peak.utc)})`
-                  : "—"}
-              </p>
+              {peaks?.obs_peak && (
+                <p className="text-sm">
+                  Actual class {peaks.obs_peak.class} at {peaks.obs_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.obs_peak.flux)})
+                </p>
+              )}
             </div>
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
@@ -740,7 +740,7 @@ const App = () => {
                 <PeakQuiz pred={peakPred} obs={peakObs} dark={dark} />
               ) : null;
               })()}
-              
+
             </div>
 
 
