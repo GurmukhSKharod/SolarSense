@@ -697,7 +697,7 @@ const App = () => {
               <p className="text-xs opacity-70">Predicted Peak</p>
               {peaks?.pred_peak && (
                 <p className="text-sm">
-                  Predicted class {peaks.pred_peak.class} at {peaks.pred_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.pred_peak.flux)})
+                  Predicted {peaks.pred_peak.class} at {peaks.pred_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.pred_peak.flux)})
                 </p>
               )}
             </div>
@@ -706,7 +706,7 @@ const App = () => {
               <p className="text-xs opacity-70">Observed Peak</p>
               {peaks?.obs_peak && (
                 <p className="text-sm">
-                  Actual class {peaks.obs_peak.class} at {peaks.obs_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.obs_peak.flux)})
+                  Actual {peaks.obs_peak.class} at {peaks.obs_peak.utc} UTC, with a flux value of ({fmtFlux(peaks.obs_peak.flux)})
                 </p>
               )}
             </div>
