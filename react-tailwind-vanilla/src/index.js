@@ -387,7 +387,8 @@ const App = () => {
 
   const [movieUrl, setMovieUrl] = useState(null); // currently selected video URL
   const [movieFallbackTry, setMovieFallbackTry] = useState(0); // 0=none,1=yesterday,2=latest
-
+  const [movieTryIso, setMovieTryIso] = useState(null); // which day the player is trying
+  const [movieTries, setMovieTries] = useState(0);      // 0 = day, 1 = day-1 (stop after)
 
   // prevent moving into the future (UTC)
   const goPrev = () =>
@@ -458,7 +459,8 @@ const App = () => {
 
         // always try the date-specific GSFC daily first
         setMovieUrl(gsfcAIA171UrlFor(day));
-        setMovieFallbackTry(0);
+        setMovieTryIso(day);
+        setMovieTries(0);
 
         setFadeKey(k => k + 1);
       } catch (e) {
@@ -546,10 +548,11 @@ const App = () => {
 
   const onVideoError = () => {
     // If today’s daily movie isn’t published yet (usually ~21:00 UTC), fall back fast.
-    if (movieFallbackTry === 0) {
+    if (movieTries === 0) {
       const prev = shiftDay(day, -1);
       setMovieUrl(gsfcAIA171UrlFor(prev));
-      setMovieFallbackTry(1);
+      setMovieTryIso(prev);
+      setMovieTries(1);
       return;
     }
     if (movieFallbackTry === 1) {
@@ -752,9 +755,9 @@ const App = () => {
                 <>
                   <video
                     ref={videoRef}
-                    key={movieUrl || sdo?.movie_url || "no-video"}
-                    src={movieUrl || sdo?.movie_url || ""}
-                    poster={sdo?.poster_url || ""}
+                    key={movieUrl || "no-video"}
+                    src={movieUrl || ""}
+                    poster={sdo?.poster_url || ""}  // fine to keep; or omit
                     preload="metadata"
                     autoPlay
                     loop
@@ -766,13 +769,10 @@ const App = () => {
                       width: "100%",
                       height: "100%",
                       objectFit: "cover",
-                      // nudge the framing up slightly to crop the caption band;
-                      // you also keep the hard mask below for full coverage.
-                      objectPosition: "center 40%",
+                      objectPosition: "center 40%", // nudged up a bit
                       transform: "scale(1.02)",
                     }}
                   />
-
                   {/* masks to fully hide SDO caption */}
                   <div
                     className="absolute inset-x-0 bottom-0 pointer-events-none"
