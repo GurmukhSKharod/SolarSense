@@ -126,7 +126,7 @@ const gsfcAIA171UrlFor = (isoUtcDay) => {
   const y = isoUtcDay.slice(0, 4);
   const m = isoUtcDay.slice(5, 7);
   const d = isoUtcDay.slice(8, 10);
-  return `https://sdo.gsfc.nasa.gov/assets/img/dailymov/${y}/${m}/${y}${m}${d}_1024_0171.mp4`;
+  return `https://sdo.gsfc.nasa.gov/assets/img/dailymov/${y}/${m}/${d}/${y}${m}${d}_1024_0171.mp4`;
 };
 
 // SWPC "latest" as a final safety fallback
