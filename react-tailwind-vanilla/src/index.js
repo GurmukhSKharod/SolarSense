@@ -696,7 +696,7 @@ const App = () => {
               <p className="text-xs opacity-70">Predicted Peak</p>
               <p className="text-sm font-semibold">
                 {peaks?.pred_peak
-                  ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} UTC (${fmtFlux(peaks.pred_peak.flux)})`
+                  ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} UTC (${fmtFlux(peaks.pred_peak.utc)})`
                   : "—"}
               </p>
             </div>
@@ -705,7 +705,7 @@ const App = () => {
               <p className="text-xs opacity-70">Observed Peak</p>
               <p className="text-sm font-semibold">
                 {peaks?.obs_peak
-                  ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} UTC (${fmtFlux(peaks.obs_peak.flux)})`
+                  ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} UTC (${fmtFlux(peaks.obs_peak.utc)})`
                   : "—"}
               </p>
             </div>
@@ -716,18 +716,18 @@ const App = () => {
                 {sdo?.summary
                   ? sdo.summary
                   : (peaks?.pred_peak || peaks?.obs_peak)
-                    ? `Predicted peak: ${peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} (${fmtFlux(peaks.pred_peak.flux)})` : "—"} • `
+                    ? `Predicted peak: ${peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} (${fmtFlux(peaks.pred_peak.flux)})` : "—"} <br /><br />`
                       + `Observed peak: ${peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} (${fmtFlux(peaks.obs_peak.flux)})` : "—"}`
                     : "—"}
               </p>
-            </div>
-            {(() => {
+              {(() => {
               const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
               const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
               return peakPred && peakObs ? (
                 <PeakQuiz pred={peakPred} obs={peakObs} dark={dark} />
               ) : null;
-            })()}
+              })()}
+            </div>
 
             {!!(sdo?.regions?.length) && (
               <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
