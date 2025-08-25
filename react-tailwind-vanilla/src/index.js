@@ -249,10 +249,10 @@ const hoursToChart = (hourlyPred = [], hourlyAct = [], dayIso) => {
 
 // === Quick “Pred vs Observed” quiz ===
 function PeakQuiz({ pred, obs, dark }) {
-  // Guard against missing/zero flux
+  // Guard against missing/zero flux (supports .flux or .value)
   const safe = (x) => (Number.isFinite(x) && x > 0 ? x : null);
-  const p = safe(pred?.flux);
-  const o = safe(obs?.flux);
+  const p = safe(pred?.flux ?? pred?.value);
+  const o = safe(obs?.flux ?? obs?.value);
 
   if (!p || !o) {
     return (
