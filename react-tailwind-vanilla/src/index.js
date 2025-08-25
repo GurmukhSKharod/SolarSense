@@ -249,110 +249,110 @@ const hoursToChart = (hourlyPred = [], hourlyAct = [], dayIso) => {
 // };
 
 // === Quick “Pred vs Observed” quiz ===
-function PeakQuiz({ pred, obs, dark }) {
-  // Guard against missing/zero flux (supports .flux or .value)
-  const safe = (x) => (Number.isFinite(x) && x > 0 ? x : null);
-  const p = safe(pred?.flux ?? pred?.value);
-  const o = safe(obs?.flux ?? obs?.value);
+// function PeakQuiz({ pred, obs, dark }) {
+//   // Guard against missing/zero flux (supports .flux or .value)
+//   const safe = (x) => (Number.isFinite(x) && x > 0 ? x : null);
+//   const p = safe(pred?.flux ?? pred?.value);
+//   const o = safe(obs?.flux ?? obs?.value);
 
-  if (!p || !o) {
-    return (
-      <div className={`mt-2 rounded-md p-2.5 ${dark ? "bg-slate-900/50" : "bg-slate-50"}`}>
-        <div className="text-xs opacity-70">Quick check</div>
-        <div className="mt-1 text-xs">Need both flux values to compare.</div>
-      </div>
-    );
-  }
+//   if (!p || !o) {
+//     return (
+//       <div className={`mt-2 rounded-md p-2.5 ${dark ? "bg-slate-900/50" : "bg-slate-50"}`}>
+//         <div className="text-xs opacity-70">Quick check</div>
+//         <div className="mt-1 text-xs">Need both flux values to compare.</div>
+//       </div>
+//     );
+//   }
 
-  const ratio = o / p;               // >1 → observed > predicted (model LOW)
-  const absErr = Math.abs(ratio - 1);
-  const within = 0.2;                // 20% window counts as “About right”
-  const truth = absErr <= within ? "right" : ratio > 1 ? "low" : "high";
-  const [answer, setAnswer] = React.useState(null);
+//   const ratio = o / p;               // >1 → observed > predicted (model LOW)
+//   const absErr = Math.abs(ratio - 1);
+//   const within = 0.2;                // 20% window counts as “About right”
+//   const truth = absErr <= within ? "right" : ratio > 1 ? "low" : "high";
+//   const [answer, setAnswer] = React.useState(null);
 
-  const classOrder = (c) => {
-    if (!c) return -1;
-    const L = String(c).trim().toUpperCase()[0];
-    return L === "A" ? 0 : L === "B" ? 1 : L === "C" ? 2 : L === "M" ? 3 : L === "X" ? 4 : -1;
-  };
-  const deltaClass = classOrder(obs?.class) - classOrder(pred?.class);
+//   const classOrder = (c) => {
+//     if (!c) return -1;
+//     const L = String(c).trim().toUpperCase()[0];
+//     return L === "A" ? 0 : L === "B" ? 1 : L === "C" ? 2 : L === "M" ? 3 : L === "X" ? 4 : -1;
+//   };
+//   const deltaClass = classOrder(obs?.class) - classOrder(pred?.class);
 
-  const pct = (n) => `${(n * 100).toFixed(0)}%`;
-  const xFmt = (x) => {
-    const s = (x >= 10 ? x.toFixed(1) : x.toFixed(2)).replace(/\.0+$/, "");
-    return `${s}×`;
-  };
+//   const pct = (n) => `${(n * 100).toFixed(0)}%`;
+//   const xFmt = (x) => {
+//     const s = (x >= 10 ? x.toFixed(1) : x.toFixed(2)).replace(/\.0+$/, "");
+//     return `${s}×`;
+//   };
 
-  const bg = dark ? "bg-slate-900/50" : "bg-slate-50";
-  const btnBase = "px-2.5 py-1.5 text-xs rounded-md border transition-colors";
-  const btnLight = dark ? "border-slate-700 hover:bg-slate-800" : "border-slate-300 hover:bg-slate-100";
-  const btnSelected = "border-transparent ring-1 ring-indigo-500/70";
+//   const bg = dark ? "bg-slate-900/50" : "bg-slate-50";
+//   const btnBase = "px-2.5 py-1.5 text-xs rounded-md border transition-colors";
+//   const btnLight = dark ? "border-slate-700 hover:bg-slate-800" : "border-slate-300 hover:bg-slate-100";
+//   const btnSelected = "border-transparent ring-1 ring-indigo-500/70";
 
-  const explanation =
-    truth === "right"
-      ? `Within ${pct(within)} ⇒ about right.`
-      : truth === "low"
-      ? "Observed > Predicted ⇒ model was LOW."
-      : "Observed < Predicted ⇒ model was HIGH.";
+//   const explanation =
+//     truth === "right"
+//       ? `Within ${pct(within)} ⇒ about right.`
+//       : truth === "low"
+//       ? "Observed > Predicted ⇒ model was LOW."
+//       : "Observed < Predicted ⇒ model was HIGH.";
 
-  return (
-    <div className={`mt-2 ${bg} rounded-md p-2.5`}>
-      <div className="flex items-start justify-between gap-3">
-        <div className="text-xs opacity-70">Quick check</div>
-        <div className="flex gap-1.5">
-          {["high", "right", "low"].map((opt) => (
-            <button
-              key={opt}
-              className={`${btnBase} ${btnLight} ${answer === opt ? btnSelected : ""}`}
-              onClick={() => setAnswer(opt)}
-              title={
-                opt === "high"
-                  ? "Model predicted too HIGH"
-                  : opt === "low"
-                  ? "Model predicted too LOW"
-                  : "Model was ABOUT RIGHT"
-              }
-            >
-              {opt === "right" ? "About right" : opt === "high" ? "High" : "Low"}
-            </button>
-          ))}
-        </div>
-      </div>
+//   return (
+//     <div className={`mt-2 ${bg} rounded-md p-2.5`}>
+//       <div className="flex items-start justify-between gap-3">
+//         <div className="text-xs opacity-70">Quick check</div>
+//         <div className="flex gap-1.5">
+//           {["high", "right", "low"].map((opt) => (
+//             <button
+//               key={opt}
+//               className={`${btnBase} ${btnLight} ${answer === opt ? btnSelected : ""}`}
+//               onClick={() => setAnswer(opt)}
+//               title={
+//                 opt === "high"
+//                   ? "Model predicted too HIGH"
+//                   : opt === "low"
+//                   ? "Model predicted too LOW"
+//                   : "Model was ABOUT RIGHT"
+//               }
+//             >
+//               {opt === "right" ? "About right" : opt === "high" ? "High" : "Low"}
+//             </button>
+//           ))}
+//         </div>
+//       </div>
 
-      <div className="mt-2 text-xs leading-relaxed">
-        <div className="opacity-80">
-          Observed is <span className="font-medium">{xFmt(ratio)}</span> of predicted (
-          {ratio > 1 ? "+" : "−"}
-          {pct(Math.abs(ratio - 1))}).{" "}
-          <span className="opacity-70">
-            Classes: {pred?.class || "—"} → {obs?.class || "—"}{" "}
-            {Number.isFinite(deltaClass)
-              ? deltaClass === 0
-                ? "(same letter class)"
-                : `(${deltaClass > 0 ? "+" : ""}${deltaClass} class step${Math.abs(deltaClass) === 1 ? "" : "s"})`
-              : ""}
-          </span>
-        </div>
+//       <div className="mt-2 text-xs leading-relaxed">
+//         <div className="opacity-80">
+//           Observed is <span className="font-medium">{xFmt(ratio)}</span> of predicted (
+//           {ratio > 1 ? "+" : "−"}
+//           {pct(Math.abs(ratio - 1))}).{" "}
+//           <span className="opacity-70">
+//             Classes: {pred?.class || "—"} → {obs?.class || "—"}{" "}
+//             {Number.isFinite(deltaClass)
+//               ? deltaClass === 0
+//                 ? "(same letter class)"
+//                 : `(${deltaClass > 0 ? "+" : ""}${deltaClass} class step${Math.abs(deltaClass) === 1 ? "" : "s"})`
+//               : ""}
+//           </span>
+//         </div>
 
-        {answer && (
-          <div
-            className={`mt-2 rounded-md px-2 py-1 ${
-              answer === truth
-                ? dark
-                  ? "bg-emerald-900/40 text-emerald-300"
-                  : "bg-emerald-50 text-emerald-700"
-                : dark
-                ? "bg-rose-900/40 text-rose-300"
-                : "bg-rose-50 text-rose-700"
-            }`}
-          >
-            {answer === truth ? "Correct." : "Incorrect."} {explanation}
-          </div>
-        )}
-      </div>
-    </div>
-  );
-}
+//         {answer && (
+//           <div
+//             className={`mt-2 rounded-md px-2 py-1 ${
+//               answer === truth
+//                 ? dark
+//                   ? "bg-emerald-900/40 text-emerald-300"
+//                   : "bg-emerald-50 text-emerald-700"
+//                 : dark
+//                 ? "bg-rose-900/40 text-rose-300"
+//                 : "bg-rose-50 text-rose-700"
+//             }`}
+//           >
+//             {answer === truth ? "Correct." : "Incorrect."} {explanation}
+//           </div>
+//         )}
+//       </div>
+//     </div>
+//   );
+// }
 
 
 
@@ -390,6 +390,9 @@ const App = () => {
   const [movieFallbackTry, setMovieFallbackTry] = useState(0); // 0=none,1=yesterday,2=latest
   const [movieTryIso, setMovieTryIso] = useState(null); // which day the player is trying
   const [movieTries, setMovieTries] = useState(0);      // 0 = day, 1 = day-1 (stop after)
+  const [similarity, setSimilarity] = useState({ same: 0, diff: 0, total: 0 });
+
+
 
   // prevent moving into the future (UTC)
   const goPrev = () =>
@@ -434,6 +437,20 @@ const App = () => {
         const predP = peakFromHourly(s.hourly_pred, "long_flux_pred", "class");
         const obsP  = peakFromHourly(s.hourly_actual, "long_flux",      "class");
         setPeaks({ pred_peak: predP, obs_peak: obsP });
+
+        // similarity stats: compare per-hour predicted vs actual class
+        let same = 0, diff = 0;
+        if (s.hourly_pred && s.hourly_actual) {
+          const actByHour = new Map(s.hourly_actual.map(h => [h.hour, h.class]));
+          for (const h of s.hourly_pred) {
+            const act = actByHour.get(h.hour);
+            if (!act) continue;
+            if (String(h.class).toUpperCase()[0] === String(act).toUpperCase()[0]) same++;
+            else diff++;
+          }
+        }
+        setSimilarity({ same, diff, total: same + diff });
+
 
       } catch (e) {
         console.warn("summary load failed:", e);
@@ -733,6 +750,27 @@ const App = () => {
                 </p>
               )}
 
+              {/* similarity stats */}
+              {similarity.total > 0 && (
+                <p className="text-sm mt-1">
+                  Hourly match: {similarity.same}/{similarity.total} (
+                  {((similarity.same / similarity.total) * 100).toFixed(0)}% similarity)
+                </p>
+              )}
+
+              {/* keep the plain descriptive quick-check sentence */}
+              {peaks?.pred_peak && peaks?.obs_peak && (
+                <p className="text-xs mt-2 opacity-80">
+                  Observed is{" "}
+                  <span className="font-medium">
+                    {(peaks.obs_peak.flux / peaks.pred_peak.flux).toFixed(2)}×
+                  </span>{" "}
+                  of predicted (
+                  {((peaks.obs_peak.flux / peaks.pred_peak.flux - 1) * 100).toFixed(0)}%). Classes:{" "}
+                  {peaks.pred_peak.class} → {peaks.obs_peak.class}
+                </p>
+              )}
+
               {(() => {
               const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
               const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
@@ -742,9 +780,6 @@ const App = () => {
               })()}
 
             </div>
-
-
-            
 
             {!!(sdo?.regions?.length) && (
               <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
