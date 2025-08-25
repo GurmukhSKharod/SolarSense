@@ -182,22 +182,22 @@ function hourlyToSeries(isoDay, hourlyPred = [], hourlyAct = []) {
 }
 
 // ---- utilities for peaks from hourly ----
-// const hh = (n) => String(n).padStart(2, "0");
-// function peakFromHourly(hourly, fluxKey) {
-//   if (!Array.isArray(hourly) || hourly.length === 0) return null;
-//   let best = null;
-//   for (const h of hourly) {
-//     const v = Number(h[fluxKey]);
-//     if (!Number.isFinite(v)) continue;
-//     if (!best || v > best[fluxKey]) best = h;
-//   }
-//   if (!best) return null;
-//   return {
-//     class: `${best.class}-Class`,     // server already sends class for hourly rows
-//     utc: `${hh(best.hour)}:00`,
-//     value: Number(best[fluxKey]),
-//   };
-// }
+const hh = (n) => String(n).padStart(2, "0");
+function peakFromHourly(hourly, fluxKey) {
+  if (!Array.isArray(hourly) || hourly.length === 0) return null;
+  let best = null;
+  for (const h of hourly) {
+    const v = Number(h[fluxKey]);
+    if (!Number.isFinite(v)) continue;
+    if (!best || v > best[fluxKey]) best = h;
+  }
+  if (!best) return null;
+  return {
+    class: `${best.class}-Class`,     // server already sends class for hourly rows
+    utc: `${hh(best.hour)}:00`,
+    value: Number(best[fluxKey]),
+  };
+}
 
 
 /* Fallback: pull peaks from a summary sentence */
@@ -225,15 +225,15 @@ const hoursToChart = (hourlyPred = [], hourlyAct = [], dayIso) => {
   return [...byHour.values()].sort((a,b)=>a.t-b.t);
 };
 
-const peakFromHourly = (rows, fluxKey = "long_flux", classKey = "class") => {
-  if (!rows?.length) return null;
-  const best = rows.reduce((a,b) => ( (b[fluxKey]||0) > (a[fluxKey]||0) ? b : a ));
-  return {
-    class: `${best[classKey]}-Class`,
-    utc: `${String(best.hour).padStart(2,"0")}:00`,
-    flux: best[fluxKey] || 0,
-  };
-};
+// const peakFromHourly = (rows, fluxKey = "long_flux", classKey = "class") => {
+//   if (!rows?.length) return null;
+//   const best = rows.reduce((a,b) => ( (b[fluxKey]||0) > (a[fluxKey]||0) ? b : a ));
+//   return {
+//     class: `${best[classKey]}-Class`,
+//     utc: `${String(best.hour).padStart(2,"0")}:00`,
+//     flux: best[fluxKey] || 0,
+//   };
+// };
 
 // === Quick “Pred vs Observed” quiz ===
 function PeakQuiz({ pred, obs, dark }) {
