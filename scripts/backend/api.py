@@ -32,6 +32,23 @@ app.add_middleware(
 
 app.add_middleware(GZipMiddleware, minimum_size=500)
 
+# --- Lightweight SDO constants (no remote fetch in backend) ---
+# SWPC hosts continuously-updated AIA-171 assets; video tag can point cross-origin.
+AIA171_LATEST_MP4 = "https://services.swpc.noaa.gov/images/animations/sdo-aia-171/latest.mp4"
+AIA171_LATEST_JPG = "https://services.swpc.noaa.gov/images/solar/sdo/aia/171/latest.jpg"
+
+def _peak_from_hourly(rows, flux_key, class_key):
+    """Return dict like {'class':'C-Class','utc':'08:00','flux':1.7e-6} from hourly rows."""
+    if not rows:
+        return None
+    best = max(rows, key=lambda r: r.get(flux_key, 0.0) or 0.0)
+    hh   = int(best["hour"])
+    utc  = f"{hh:02d}:00"
+    cls  = f'{best.get(class_key,"A")}-Class'
+    val  = float(best.get(flux_key, 0.0) or 0.0)
+    return {"class": cls, "utc": utc, "flux": val}
+
+
 def _utc_day_window(date_iso: str):
     """Return UTC start/end for a YYYY-MM-DD."""
     try:
@@ -199,3 +216,30 @@ def _summary_cached(date_iso: str):
 @app.get("/summary/{date_iso}")
 def summary(date_iso: str):
     return _summary_cached(date_iso)
+
+
+
+@app.get("/sdo-lite/{date_iso}")
+def sdo_lite(date_iso: str):
+    """
+    Super fast: returns a *latest* AIA-171 movie URL plus peaks derived
+    from cached hourly summary for the requested date. No heavy fetches here.
+    """
+    data = _summary_cached(date_iso)   # cached hourly_actual/pred
+    pred_peak = _peak_from_hourly(data.get("hourly_pred", []), "long_flux_pred", "class")
+    obs_peak  = _peak_from_hourly(data.get("hourly_actual", []), "long_flux", "class")
+
+    # A short textual summary the frontend can display
+    def _fmt_peak(p):
+        return f"{p['class']} at {p['utc']} UTC ({p['flux']:.2e})" if p else "—"
+    summary = f"Predicted peak: {_fmt_peak(pred_peak)} • Observed peak: {_fmt_peak(obs_peak)}"
+
+    return {
+        "date": data["date"],
+        "movie_url": AIA171_LATEST_MP4,    # latest (not strictly date-matched)
+        "poster_url": AIA171_LATEST_JPG,
+        "pred_peak": pred_peak,
+        "obs_peak":  obs_peak,
+        "summary": summary,
+        "note": "Latest AIA-171 imagery; peaks are for the requested UTC date.",
+    }

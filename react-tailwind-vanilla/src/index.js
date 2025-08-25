@@ -128,8 +128,13 @@ const getSummary = async (isoUtcDay, opts={}) => {
 //   return r.json();
 // };
 
-const getSdo = async (isoUtcDay) => {
-  const r = await warmFetch(`${API_BASE}/sdo/${isoUtcDay}`);
+// const getSdo = async (isoUtcDay) => {
+//   const r = await warmFetch(`${API_BASE}/sdo/${isoUtcDay}`);
+//   return r.json();
+// };
+
+const getSdoLite = async (isoUtcDay, opts={}) => {
+  const r = await warmFetch(`${API_BASE}/sdo-lite/${isoUtcDay}`, opts);
   return r.json();
 };
 
@@ -205,6 +210,139 @@ const parsePeaksFromSummary = (summary = "") => {
   };
 };
 
+const fmtFlux = (v) => new Intl.NumberFormat("en", { notation: "scientific", maximumFractionDigits: 2 }).format(v || 0);
+
+const hoursToChart = (hourlyPred = [], hourlyAct = [], dayIso) => {
+  // build one point per hour on the requested UTC day
+  const mkTs = (h) => new Date(`${dayIso}T${String(h).padStart(2,"0")}:00:00Z`);
+  const byHour = new Map();
+  for (const h of hourlyPred) byHour.set(h.hour, { t: mkTs(h.hour), pred: Number(h.long_flux_pred) || undefined });
+  for (const h of hourlyAct) {
+    const row = byHour.get(h.hour) || { t: mkTs(h.hour) };
+    row.actual = Number(h.long_flux) || undefined;
+    byHour.set(h.hour, row);
+  }
+  return [...byHour.values()].sort((a,b)=>a.t-b.t);
+};
+
+const peakFromHourly = (rows, fluxKey = "long_flux", classKey = "class") => {
+  if (!rows?.length) return null;
+  const best = rows.reduce((a,b) => ( (b[fluxKey]||0) > (a[fluxKey]||0) ? b : a ));
+  return {
+    class: `${best[classKey]}-Class`,
+    utc: `${String(best.hour).padStart(2,"0")}:00`,
+    flux: best[fluxKey] || 0,
+  };
+};
+
+// === Quick “Pred vs Observed” quiz ===
+function PeakQuiz({ pred, obs, dark }) {
+  // Guard against missing/zero flux
+  const safe = (x) => (Number.isFinite(x) && x > 0 ? x : null);
+  const p = safe(pred?.flux);
+  const o = safe(obs?.flux);
+
+  if (!p || !o) {
+    return (
+      <div className={`mt-2 rounded-md p-2.5 ${dark ? "bg-slate-900/50" : "bg-slate-50"}`}>
+        <div className="text-xs opacity-70">Quick check</div>
+        <div className="mt-1 text-xs">Need both flux values to compare.</div>
+      </div>
+    );
+  }
+
+  const ratio = o / p;               // >1 → observed > predicted (model LOW)
+  const absErr = Math.abs(ratio - 1);
+  const within = 0.2;                // 20% window counts as “About right”
+  const truth = absErr <= within ? "right" : ratio > 1 ? "low" : "high";
+  const [answer, setAnswer] = React.useState(null);
+
+  const classOrder = (c) => {
+    if (!c) return -1;
+    const L = String(c).trim().toUpperCase()[0];
+    return L === "A" ? 0 : L === "B" ? 1 : L === "C" ? 2 : L === "M" ? 3 : L === "X" ? 4 : -1;
+  };
+  const deltaClass = classOrder(obs?.class) - classOrder(pred?.class);
+
+  const pct = (n) => `${(n * 100).toFixed(0)}%`;
+  const xFmt = (x) => {
+    const s = (x >= 10 ? x.toFixed(1) : x.toFixed(2)).replace(/\.0+$/, "");
+    return `${s}×`;
+  };
+
+  const bg = dark ? "bg-slate-900/50" : "bg-slate-50";
+  const btnBase = "px-2.5 py-1.5 text-xs rounded-md border transition-colors";
+  const btnLight = dark ? "border-slate-700 hover:bg-slate-800" : "border-slate-300 hover:bg-slate-100";
+  const btnSelected = "border-transparent ring-1 ring-indigo-500/70";
+
+  const explanation =
+    truth === "right"
+      ? `Within ${pct(within)} ⇒ about right.`
+      : truth === "low"
+      ? "Observed > Predicted ⇒ model was LOW."
+      : "Observed < Predicted ⇒ model was HIGH.";
+
+  return (
+    <div className={`mt-2 ${bg} rounded-md p-2.5`}>
+      <div className="flex items-start justify-between gap-3">
+        <div className="text-xs opacity-70">Quick check</div>
+        <div className="flex gap-1.5">
+          {["high", "right", "low"].map((opt) => (
+            <button
+              key={opt}
+              className={`${btnBase} ${btnLight} ${answer === opt ? btnSelected : ""}`}
+              onClick={() => setAnswer(opt)}
+              title={
+                opt === "high"
+                  ? "Model predicted too HIGH"
+                  : opt === "low"
+                  ? "Model predicted too LOW"
+                  : "Model was ABOUT RIGHT"
+              }
+            >
+              {opt === "right" ? "About right" : opt === "high" ? "High" : "Low"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="mt-2 text-xs leading-relaxed">
+        <div className="opacity-80">
+          Observed is <span className="font-medium">{xFmt(ratio)}</span> of predicted (
+          {ratio > 1 ? "+" : "−"}
+          {pct(Math.abs(ratio - 1))}).{" "}
+          <span className="opacity-70">
+            Classes: {pred?.class || "—"} → {obs?.class || "—"}{" "}
+            {Number.isFinite(deltaClass)
+              ? deltaClass === 0
+                ? "(same letter class)"
+                : `(${deltaClass > 0 ? "+" : ""}${deltaClass} class step${Math.abs(deltaClass) === 1 ? "" : "s"})`
+              : ""}
+          </span>
+        </div>
+
+        {answer && (
+          <div
+            className={`mt-2 rounded-md px-2 py-1 ${
+              answer === truth
+                ? dark
+                  ? "bg-emerald-900/40 text-emerald-300"
+                  : "bg-emerald-50 text-emerald-700"
+                : dark
+                ? "bg-rose-900/40 text-rose-300"
+                : "bg-rose-50 text-rose-700"
+            }`}
+          >
+            {answer === truth ? "Correct." : "Incorrect."} {explanation}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+
+
 /* ---------- main ---------- */
 
 const App = () => {
@@ -216,8 +354,8 @@ const App = () => {
   const [sdo, setSdo] = useState(null);
   const [fadeKey, setFadeKey] = useState(0);          // for SDO panel fade
 
-  const forecastAbortRef = useRef(null);
-  const summaryAbortRef  = useRef(null);
+  // const forecastAbortRef = useRef(null);
+  // const summaryAbortRef  = useRef(null);
   const sdoAbortRef      = useRef(null);
 
   // limit how far back a user can go (in UTC)
@@ -232,6 +370,8 @@ const App = () => {
   const timeRef  = useRef(null);
   const leftColRef = useRef(null);
   const [vidH, setVidH] = useState(420);              // desktop video height
+
+  const [peaks, setPeaks] = useState({ pred_peak: null, obs_peak: null });
 
   // prevent moving into the future (UTC)
   const goPrev = () =>
@@ -249,74 +389,65 @@ const App = () => {
 
   useEffect(() => {
     let cancelled = false;
-    const ac = new AbortController();
 
     (async () => {
       try {
-        const s = await getSummaryCached(day, { signal: ac.signal });
+        const s = await getSummary(day);
+        if (cancelled || !s?.hourly_pred?.length) return;
 
-        // ----- Hourly strip tiles
-        if (s?.hourly_pred?.length === 24) {
-          const predHours = s.hourly_pred.map(h => ({
-            hour: h.hour,
-            time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
-            predClass: `${h.class}-Class`,
-          }));
-          const actualByHour = new Map((s.hourly_actual || []).map(h => [h.hour, `${h.class}-Class`]));
-          const hours = predHours.map(h => ({
-            ...h,
-            actualClass: actualByHour.get(h.hour) || null,
-            classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
-          }));
-          if (!cancelled) setData(hours);
-        } else if (!cancelled) {
-          setData(makeDummy());
-        }
+        // Hourly tiles
+        const predHours = s.hourly_pred.map(h => ({
+          hour: h.hour,
+          time: `${h.hour % 12 || 12}${h.hour < 12 ? "AM" : "PM"}`,
+          predClass: `${h.class}-Class`,
+        }));
+        const actualByHour = new Map((s.hourly_actual || []).map(h => [h.hour, `${h.class}-Class`]));
+        const hours = predHours.map(h => ({
+          ...h,
+          actualClass: actualByHour.get(h.hour) || null,
+          classIndex: ["A","B","C","M","X"].indexOf((h.predClass||"A").charAt(0)),
+        }));
+        setData(hours);
 
-        // ----- Chart from hourly (24 points)
-        if (!cancelled) {
-          setChartData(hourlyToSeries(day, s.hourly_pred || [], s.hourly_actual || []));
-        }
+        // Chart from hourly (fast)
+        setChartData(hoursToChart(s.hourly_pred, s.hourly_actual, s.date));
 
-        // ----- Peaks from hourly (for cards)
-        if (!cancelled) {
-          setPeaks({
-            pred_peak: peakFromHourly(s.hourly_pred, "long_flux_pred"),
-            obs_peak:  peakFromHourly(s.hourly_actual, "long_flux"),
-          });
-        }
+        // Peaks for the side cards (always available)
+        const predP = peakFromHourly(s.hourly_pred, "long_flux_pred", "class");
+        const obsP  = peakFromHourly(s.hourly_actual, "long_flux",      "class");
+        setPeaks({ pred_peak: predP, obs_peak: obsP });
+
       } catch (e) {
-        if (e?.name !== "AbortError") console.warn("summary load failed:", e);
+        console.warn("summary load failed:", e);
+        setChartData([]);
+        setData(makeDummy());
+        setPeaks({ pred_peak: null, obs_peak: null });
       }
     })();
 
-    return () => {
-      cancelled = true;
-      ac.abort();
-    };
+    return () => { cancelled = true; };
   }, [day]);
 
 
+
   useEffect(() => {
-    sdoAbortRef.current?.abort();
+    let cancelled = false;
     const ac = new AbortController();
-    sdoAbortRef.current = ac;
 
     (async () => {
       try {
-        const res = await warmFetch(`${API_BASE}/sdo/${day}`, { signal: ac.signal });
-        const payload = await res.json();
+        const payload = await getSdoLite(day, { signal: ac.signal });
+        if (cancelled) return;
         setSdo(payload || null);
         setFadeKey(k => k + 1);
       } catch (e) {
-        if (e?.name !== "AbortError") console.warn("sdo load failed:", e);
+        if (e?.name !== "AbortError") console.warn("sdo-lite load failed:", e);
         setSdo(null);
       }
     })();
 
-    return () => ac.abort();
+    return () => { cancelled = true; ac.abort(); };
   }, [day]);
-
 
 
   // live clock
@@ -379,8 +510,6 @@ const App = () => {
   //     }
   //   : {};
 
-  
-  const [peaks, setPeaks] = useState({ pred_peak: null, obs_peak: null });
 
   // update tiny UTC time label w/o re-render
   const onVideoTimeUpdate = () => {
@@ -525,21 +654,39 @@ const App = () => {
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Predicted Peak</p>
               <p className="text-sm font-semibold">
-                {peakPred ? `${peakPred.class} at ${peakPred.utc} UTC` : "—"}
+                {peaks?.pred_peak
+                  ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} UTC (${fmtFlux(peaks.pred_peak.flux)})`
+                  : "—"}
               </p>
             </div>
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70">Observed Peak</p>
               <p className="text-sm font-semibold">
-                {peakObs ? `${peakObs.class} at ${peakObs.utc} UTC` : "—"}
+                {peaks?.obs_peak
+                  ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} UTC (${fmtFlux(peaks.obs_peak.flux)})`
+                  : "—"}
               </p>
             </div>
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70 mb-1">Summary</p>
-              <p className="text-sm leading-relaxed">{sdo?.summary || "—"}</p>
+              <p className="text-sm leading-relaxed">
+                {sdo?.summary
+                  ? sdo.summary
+                  : (peaks?.pred_peak || peaks?.obs_peak)
+                    ? `Predicted peak: ${peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} (${fmtFlux(peaks.pred_peak.flux)})` : "—"} • `
+                      + `Observed peak: ${peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} (${fmtFlux(peaks.obs_peak.flux)})` : "—"}`
+                    : "—"}
+              </p>
             </div>
+            {(() => {
+              const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
+              const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
+              return peakPred && peakObs ? (
+                <PeakQuiz pred={peakPred} obs={peakObs} dark={dark} />
+              ) : null;
+            })()}
 
             {!!(sdo?.regions?.length) && (
               <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
@@ -567,8 +714,10 @@ const App = () => {
                 <>
                   <video
                     ref={videoRef}
-                    key={sdo.movie_url}
-                    src={sdo.movie_url}
+                    key={sdo?.movie_url || "no-video"}
+                    src={sdo?.movie_url || ""}
+                    poster={sdo?.poster_url || ""}
+                    preload="metadata"
                     autoPlay
                     loop
                     muted
@@ -577,9 +726,9 @@ const App = () => {
                     style={{
                       width: "100%",
                       height: "100%",
-                      objectFit: "cover",     // stretch & crop
+                      objectFit: "cover",
                       objectPosition: "center 46%",
-                      transform: "scale(1.03)", // tiny zoom to bury any caption edges
+                      transform: "scale(1.03)",
                     }}
                   />
                   {/* masks to fully hide SDO caption */}
@@ -643,7 +792,7 @@ const App = () => {
                 </>
               ) : (
                 <div className="w-full h-full flex items-center justify-center text-sm">
-                  No imagery available for this date.
+                  No video available for this date.
                 </div>
               )}
             </div>
