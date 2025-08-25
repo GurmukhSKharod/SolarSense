@@ -749,6 +749,9 @@ const App = () => {
                 </p>
               )}
 
+              <p className="text-sm">
+                  ---------- 
+              </p>
               {/* similarity stats */}
               {similarity.total > 0 && (
                 <p className="text-sm mt-1">
@@ -756,6 +759,10 @@ const App = () => {
                   {((similarity.same / similarity.total) * 100).toFixed(0)}% similarity)
                 </p>
               )}
+
+              <p className="text-sm">
+                  ---------- 
+              </p>
 
               {/* keep the plain descriptive quick-check sentence */}
               {peaks?.pred_peak && peaks?.obs_peak && (
