@@ -207,9 +207,10 @@ function peakFromHourly(hourly, fluxKey) {
   return {
     class: `${best.class}-Class`,     // server already sends class for hourly rows
     utc: `${hh(best.hour)}:00`,
-    value: Number(best[fluxKey]),
+    flux: Number(best[fluxKey]),     
   };
 }
+
 
 
 /* Fallback: pull peaks from a summary sentence */
@@ -712,14 +713,26 @@ const App = () => {
 
             <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
               <p className="text-xs opacity-70 mb-1">Summary</p>
-              <p className="text-sm leading-relaxed">
-                {sdo?.summary
-                  ? sdo.summary
-                  : (peaks?.pred_peak || peaks?.obs_peak)
-                    ? `Predicted peak: ${peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} (${fmtFlux(peaks.pred_peak.flux)})` : "—"} <br /><br />`
-                      + `Obbbserved peak: ${peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} (${fmtFlux(peaks.obs_peak.flux)})` : "—"}`
-                    : "—"}
-              </p>
+
+              {peaks?.pred_peak && (
+                <p className="text-sm">
+                  Predicted peak: {peaks.pred_peak.class} at {peaks.pred_peak.utc} UTC ({fmtFlux(peaks.pred_peak.flux)})
+                </p>
+              )}
+
+              {peaks?.obs_peak && (
+                <p className="text-sm">
+                  Observed peak: {peaks.obs_peak.class} at {peaks.obs_peak.utc} UTC ({fmtFlux(peaks.obs_peak.flux)})
+                </p>
+              )}
+
+              {peaks?.pred_peak && peaks?.obs_peak && (
+                <p className="text-sm">
+                  Difference: {fmtFlux(peaks.obs_peak.flux - peaks.pred_peak.flux)} →{" "}
+                  {peaks.obs_peak.flux > peaks.pred_peak.flux ? "Observed higher" : "Predicted higher"}
+                </p>
+              )}
+
               {(() => {
               const peakPred = peaks?.pred_peak || sdo?.pred_peak || null;
               const peakObs  = peaks?.obs_peak  || sdo?.obs_peak  || null;
@@ -727,7 +740,11 @@ const App = () => {
                 <PeakQuiz pred={peakPred} obs={peakObs} dark={dark} />
               ) : null;
               })()}
+              
             </div>
+
+
+            
 
             {!!(sdo?.regions?.length) && (
               <div className={`p-3 rounded-lg ${dark ? "bg-slate-800/60" : "bg-white/70"}`}>
