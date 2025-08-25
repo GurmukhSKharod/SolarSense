@@ -717,7 +717,7 @@ const App = () => {
                   ? sdo.summary
                   : (peaks?.pred_peak || peaks?.obs_peak)
                     ? `Predicted peak: ${peaks?.pred_peak ? `${peaks.pred_peak.class} at ${peaks.pred_peak.utc} (${fmtFlux(peaks.pred_peak.flux)})` : "—"} <br /><br />`
-                      + `Observed peak: ${peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} (${fmtFlux(peaks.obs_peak.flux)})` : "—"}`
+                      + `Obbbserved peak: ${peaks?.obs_peak ? `${peaks.obs_peak.class} at ${peaks.obs_peak.utc} (${fmtFlux(peaks.obs_peak.flux)})` : "—"}`
                     : "—"}
               </p>
               {(() => {
