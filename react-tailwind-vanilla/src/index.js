@@ -766,7 +766,7 @@ const App = () => {
 
               {/* keep the plain descriptive quick-check sentence */}
               {peaks?.pred_peak && peaks?.obs_peak && (
-                <p className="text-xs mt-1">
+                <p className="text-sm mt-1">
                   Observed is{" "}
                     {(peaks.obs_peak.flux / peaks.pred_peak.flux).toFixed(2)}×
                   of predicted (
